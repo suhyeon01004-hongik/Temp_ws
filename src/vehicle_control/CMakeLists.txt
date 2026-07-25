@@ -94,6 +94,10 @@ install(
 )
 
 if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+
+  add_rostest(test/cyvox_mapping.test)
+
   catkin_add_gtest(test_joy_mapper
     test/test_joy_mapper.cpp
   )

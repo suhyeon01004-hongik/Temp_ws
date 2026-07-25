@@ -1,0 +1,19 @@
+<launch>
+  <group ns="cyvox_mapping_test">
+    <rosparam command="load"
+              file="$(find vehicle_control)/config/cyvox_mx.yaml"/>
+
+    <node pkg="vehicle_control"
+          type="joystick_teleop_node"
+          name="joystick_teleop_node"
+          output="screen">
+      <param name="joy_topic" value="/test/cyvox/joy"/>
+      <param name="command_topic" value="/test/cyvox/command"/>
+    </node>
+  </group>
+
+  <test test-name="cyvox_mapping"
+        pkg="vehicle_control"
+        type="test_cyvox_mapping.py"
+        time-limit="15"/>
+</launch>

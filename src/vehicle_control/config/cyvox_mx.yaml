@@ -3,7 +3,7 @@ joy_node:
   deadzone: 0.05
   autorepeat_rate: 20.0
   coalesce_interval: 0.001
-  default_trig_val: false
+  default_trig_val: true
 
 joystick_teleop_node:
   joy_topic: /joy
@@ -12,8 +12,8 @@ joystick_teleop_node:
   brake_axis: 2
   accel_axis: 5
   steering_inverted: false
-  brake_inverted: false
-  accel_inverted: false
+  brake_inverted: true
+  accel_inverted: true
   steering_deadzone: 0.05
 
 morai_udp_sender_node:

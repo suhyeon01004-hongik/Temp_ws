@@ -85,6 +85,9 @@ rostopic echo /vehicle/manual_command
 | `steering_axis` | `0` | 왼쪽 스틱 X축 |
 | `brake_axis` | `2` | LT축 |
 | `accel_axis` | `5` | RT축 |
+| `default_trig_val` | `true` | 시작할 때 LT·RT의 실제 초기값 사용 |
+| `brake_inverted` | `true` | CYVOX LT의 `+1 → -1` 방향을 브레이크 `0 → 1`로 변환 |
+| `accel_inverted` | `true` | CYVOX RT의 `+1 → -1` 방향을 가속 `0 → 1`로 변환 |
 | `steering_inverted` | `false` | 좌우 방향 반전 |
 | `steering_deadzone` | `0.05` | 중앙 유격 제거 |
 | `destination_ip` | `127.0.0.1` | MORAI PC 주소 |
