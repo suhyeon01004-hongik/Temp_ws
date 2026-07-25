@@ -87,9 +87,10 @@ steering 4바이트가 추가됐으며, 대회 시뮬레이터와 같은 세대�
 - MORAI 목적지 IP와 Cmd Control 포트
 - UDP 송신 주기
 
-MORAI 목적지는 같은 PC에서 실행하는 환경을 기준으로 `127.0.0.1:9095`를
-기본값으로 한다. `joy_node`의 자동 반복은 `20 Hz`, deadzone은 `0.05`로
-설정한다.
+MORAI 목적지는 같은 PC에서 실행하는 환경과 MORAI Cmd Control 기본 설정을
+기준으로 `127.0.0.1:9093`을 기본값으로 한다. YAML을 불러오지 않고 UDP 송신
+노드를 직접 실행해도 같은 포트를 사용하도록 코드 내부 기본값도 `9093`으로
+통일한다. `joy_node`의 자동 반복은 `20 Hz`, deadzone은 `0.05`로 설정한다.
 
 현재 노트북에서는 조이스틱 번호가 바뀌어도 같은 장치를 선택하도록
 `/dev/input/by-id/usb-ShanWan_Xbox360_For_Windows_10F36D6-joystick`을 기본값으로
