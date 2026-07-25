@@ -4,7 +4,7 @@
 
 **Goal:** Build a ROS1 Noetic `vehicle_control` package that maps the Joytron CYVOX MX to a neutral vehicle command and sends current MORAI Ego Ctrl Cmd UDP packets.
 
-**Architecture:** `joy_node` publishes `/joy`; `joystick_teleop_node` maps axes to `VehicleCommand`; `morai_udp_sender_node` applies a stale-command safety policy and serializes the command to the current 59-byte MORAI UDP packet. Pure mapping, watchdog, packet, and socket behavior live in a tested C++14 core library.
+**Architecture:** `joy_node` publishes `/joy`; `joystick_teleop_node` maps axes to `VehicleCommand`; `morai_udp_sender_node` applies a stale-command safety policy and serializes the command to the competition simulator's 55-byte MORAI UDP packet. Pure mapping, watchdog, packet, and socket behavior live in a tested C++14 core library.
 
 **Tech Stack:** Ubuntu 20.04, ROS1 Noetic, catkin, C++14, `sensor_msgs/Joy`, generated ROS messages, POSIX UDP sockets, gtest.
 
@@ -17,7 +17,7 @@
 - Releasing RT publishes `accel=0` and `brake=0`; it must not apply automatic braking.
 - A command older than `0.25 s` uses `accel=0`, `steering=0`, and `brake=0.5`.
 - The first version fixes gear to MORAI Drive value `4`.
-- The UDP packet uses the 2026 official 59-byte layout with a rear-steering float.
+- The UDP packet uses the 55-byte layout accepted by the competition `MolitComp03` simulator.
 - All input mapping and UDP endpoint values must be editable in YAML.
 
 ---
@@ -273,7 +273,7 @@ Assert the literal layout:
 
 ```text
 0..13   "#MoraiCtrlCmd$"
-14..17  little-endian int32 27
+14..17  little-endian int32 23
 18..29  twelve zero auxiliary bytes
 30      CtrlMode 2
 31      gear 4
@@ -283,12 +283,11 @@ Assert the literal layout:
 41..44  accel float
 45..48  brake float
 49..52  front steering float
-53..56  rear steering float 0
-57..58  CR LF
+53..54  CR LF
 ```
 
 Use literal expected bytes for `accel=0.5`, `brake=0.25`, and
-`steering=-1.0`, and verify output size `59`.
+`steering=-1.0`, and verify output size `55`.
 
 - [ ] **Step 5: Run packet tests to verify RED**
 
@@ -299,7 +298,7 @@ Expected: missing packet encoder compilation failure.
 Define:
 
 ```cpp
-using MoraiCtrlPacket = std::array<std::uint8_t, 59U>;
+using MoraiCtrlPacket = std::array<std::uint8_t, 55U>;
 MoraiCtrlPacket encodeMoraiCtrlPacket(const ControlCommand& command);
 ```
 

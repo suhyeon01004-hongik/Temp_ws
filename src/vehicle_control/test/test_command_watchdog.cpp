@@ -31,6 +31,18 @@ TEST(CommandWatchdog, StaleCommandUsesConfiguredSafeBrake) {
   EXPECT_EQ(4U, actual.gear);
 }
 
+TEST(CommandWatchdog, StaleCommandPreservesLastSelectedGear) {
+  const CommandWatchdog watchdog(0.25, 0.5F);
+
+  const ControlCommand actual =
+      watchdog.select(ControlCommand(1.0F, 0.0F, 0.8F, 2U), true, 0.3);
+
+  EXPECT_FLOAT_EQ(0.0F, actual.accel);
+  EXPECT_FLOAT_EQ(0.5F, actual.brake);
+  EXPECT_FLOAT_EQ(0.0F, actual.steering);
+  EXPECT_EQ(2U, actual.gear);
+}
+
 TEST(CommandWatchdog, MissingCommandUsesSafeCommand) {
   const CommandWatchdog watchdog(0.25, 0.4F);
 

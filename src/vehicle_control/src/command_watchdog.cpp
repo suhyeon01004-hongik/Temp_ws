@@ -24,7 +24,8 @@ ControlCommand CommandWatchdog::select(const ControlCommand& latest,
       !has_command || !std::isfinite(age_seconds) || age_seconds < 0.0 ||
       age_seconds > timeout_seconds_;
   if (stale) {
-    return ControlCommand(0.0F, safe_brake_, 0.0F, 4U);
+    const std::uint8_t safe_gear = has_command ? latest.gear : 4U;
+    return ControlCommand(0.0F, safe_brake_, 0.0F, safe_gear);
   }
   return latest;
 }

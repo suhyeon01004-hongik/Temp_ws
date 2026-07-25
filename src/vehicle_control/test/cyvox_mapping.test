@@ -9,6 +9,14 @@
           output="screen">
       <param name="joy_topic" value="/test/cyvox/joy"/>
       <param name="command_topic" value="/test/cyvox/command"/>
+      <param name="odometry_topic" value="/test/cyvox/odometry"/>
+      <param name="odometry_timeout" value="0.15"/>
+      <param name="maximum_gear_change_speed_mps" value="0.5"/>
+      <param name="initial_gear" value="4"/>
+      <param name="drive_button" value="0"/>
+      <param name="neutral_button" value="1"/>
+      <param name="reverse_button" value="2"/>
+      <param name="park_button" value="3"/>
     </node>
   </group>
 

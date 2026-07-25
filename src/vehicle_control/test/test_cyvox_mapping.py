@@ -6,6 +6,7 @@ import unittest
 
 import rospy
 import rostest
+from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Joy
 from vehicle_control.msg import VehicleCommand
 
@@ -25,6 +26,11 @@ class CyvoxMappingTest(unittest.TestCase):
             Joy,
             queue_size=10,
         )
+        self._odometry_publisher = rospy.Publisher(
+            "/test/cyvox/odometry",
+            Odometry,
+            queue_size=10,
+        )
 
         deadline = time.monotonic() + 3.0
         while (
@@ -38,20 +44,29 @@ class CyvoxMappingTest(unittest.TestCase):
     def tearDown(self):
         self._command_subscriber.unregister()
         self._joy_publisher.unregister()
+        self._odometry_publisher.unregister()
 
     def _on_command(self, command):
         with self._condition:
             self._commands.append(command)
             self._condition.notify_all()
 
-    def _map_axes(self, brake_axis, accel_axis):
+    def _publish_speed(self, speed_mps):
+        odometry = Odometry()
+        odometry.header.stamp = rospy.Time.now()
+        odometry.twist.twist.linear.x = speed_mps
+        for _ in range(5):
+            self._odometry_publisher.publish(odometry)
+            rospy.sleep(0.02)
+
+    def _map_input(self, brake_axis, accel_axis, buttons=None):
         sequence = int(time.monotonic_ns() % (2**32))
         frame_id = "cyvox-test-{}".format(sequence)
         joy = Joy()
         joy.header.seq = sequence
         joy.header.frame_id = frame_id
         joy.axes = [0.0, 0.0, brake_axis, 0.0, 0.0, accel_axis]
-        joy.buttons = [0] * 11
+        joy.buttons = list(buttons) if buttons is not None else [0] * 11
 
         deadline = time.monotonic() + 3.0
         while time.monotonic() < deadline:
@@ -74,6 +89,16 @@ class CyvoxMappingTest(unittest.TestCase):
             "expected frame_id={}, observed={}".format(frame_id, observed)
         )
 
+    def _map_axes(self, brake_axis, accel_axis):
+        return self._map_input(brake_axis, accel_axis)
+
+    def _select_gear(self, button_index, speed_mps):
+        self._publish_speed(speed_mps)
+        self._map_input(1.0, 1.0)
+        buttons = [0] * 11
+        buttons[button_index] = 1
+        return self._map_input(1.0, 1.0, buttons)
+
     def test_initial_trigger_state_is_loaded_from_device(self):
         self.assertTrue(
             rospy.get_param(
@@ -92,6 +117,28 @@ class CyvoxMappingTest(unittest.TestCase):
 
         self.assertAlmostEqual(command.brake, 1.0)
         self.assertAlmostEqual(command.accel, 1.0)
+
+    def test_reverse_button_changes_gear_at_low_speed(self):
+        command = self._select_gear(button_index=2, speed_mps=0.0)
+
+        self.assertEqual(command.gear, VehicleCommand.GEAR_REVERSE)
+
+    def test_park_button_is_rejected_above_speed_limit(self):
+        self._select_gear(button_index=0, speed_mps=0.0)
+        command = self._select_gear(button_index=3, speed_mps=1.0)
+
+        self.assertEqual(command.gear, VehicleCommand.GEAR_DRIVE)
+
+    def test_stale_odometry_rejects_gear_change(self):
+        self._select_gear(button_index=0, speed_mps=0.0)
+        self._map_input(1.0, 1.0)
+        rospy.sleep(0.2)
+        buttons = [0] * 11
+        buttons[2] = 1
+
+        command = self._map_input(1.0, 1.0, buttons)
+
+        self.assertEqual(command.gear, VehicleCommand.GEAR_DRIVE)
 
 
 if __name__ == "__main__":

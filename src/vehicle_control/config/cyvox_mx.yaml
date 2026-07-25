@@ -15,6 +15,14 @@ joystick_teleop_node:
   brake_inverted: true
   accel_inverted: true
   steering_deadzone: 0.05
+  odometry_topic: /localization/odometry
+  odometry_timeout: 0.5
+  maximum_gear_change_speed_mps: 0.5
+  initial_gear: 4
+  drive_button: 0
+  neutral_button: 1
+  reverse_button: 2
+  park_button: 3
 
 morai_udp_sender_node:
   command_topic: /vehicle/manual_command

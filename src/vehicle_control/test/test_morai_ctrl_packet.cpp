@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <limits>
@@ -9,13 +10,13 @@
 namespace vehicle_control {
 namespace {
 
-TEST(MoraiCtrlPacket, EncodesCurrentOfficialLayoutExactly) {
+TEST(MoraiCtrlPacket, EncodesMolitCompetitionLayoutExactly) {
   const MoraiCtrlPacket actual =
       encodeMoraiCtrlPacket(ControlCommand(0.5F, 0.25F, -1.0F, 4U));
-  const MoraiCtrlPacket expected{{
+  const std::array<std::uint8_t, 55U> expected{{
       0x23U, 0x4dU, 0x6fU, 0x72U, 0x61U, 0x69U, 0x43U, 0x74U,
       0x72U, 0x6cU, 0x43U, 0x6dU, 0x64U, 0x24U,
-      0x1bU, 0x00U, 0x00U, 0x00U,
+      0x17U, 0x00U, 0x00U, 0x00U,
       0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,
       0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,
       0x02U, 0x04U, 0x01U,
@@ -24,12 +25,11 @@ TEST(MoraiCtrlPacket, EncodesCurrentOfficialLayoutExactly) {
       0x00U, 0x00U, 0x00U, 0x3fU,
       0x00U, 0x00U, 0x80U, 0x3eU,
       0x00U, 0x00U, 0x80U, 0xbfU,
-      0x00U, 0x00U, 0x00U, 0x00U,
       0x0dU, 0x0aU,
   }};
 
-  EXPECT_EQ(59U, actual.size());
-  EXPECT_EQ(expected, actual);
+  EXPECT_EQ(55U, actual.size());
+  EXPECT_TRUE(std::equal(expected.begin(), expected.end(), actual.begin()));
 }
 
 TEST(MoraiCtrlPacket, ClampsPedalAndSteeringRanges) {
@@ -58,6 +58,13 @@ TEST(MoraiCtrlPacket, NonFiniteControlsBecomeNeutral) {
   for (std::size_t index = 41U; index <= 52U; ++index) {
     EXPECT_EQ(0x00U, actual[index]);
   }
+}
+
+TEST(MoraiCtrlPacket, EncodesSelectedReverseGear) {
+  const MoraiCtrlPacket actual =
+      encodeMoraiCtrlPacket(ControlCommand(0.0F, 0.0F, 0.0F, 2U));
+
+  EXPECT_EQ(0x02U, actual[31]);
 }
 
 }  // namespace

@@ -42,7 +42,7 @@ MoraiCtrlPacket encodeMoraiCtrlPacket(const ControlCommand& command) {
                 "MORAI control header must be 14 bytes");
   std::copy(kHeader, kHeader + 14U, packet.begin());
 
-  writeUint32(27U, 14U, &packet);
+  writeUint32(23U, 14U, &packet);
   packet[30U] = 2U;
   packet[31U] =
       command.gear >= 1U && command.gear <= 5U ? command.gear : 4U;
@@ -53,9 +53,8 @@ MoraiCtrlPacket encodeMoraiCtrlPacket(const ControlCommand& command) {
   writeFloat(boundedControl(command.brake, 0.0F, 1.0F), 45U, &packet);
   writeFloat(boundedControl(command.steering, -1.0F, 1.0F), 49U,
              &packet);
-  writeFloat(0.0F, 53U, &packet);
-  packet[57U] = '\r';
-  packet[58U] = '\n';
+  packet[53U] = '\r';
+  packet[54U] = '\n';
   return packet;
 }
 

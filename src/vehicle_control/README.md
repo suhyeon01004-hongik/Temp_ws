@@ -5,9 +5,10 @@
 때문에 이후 자율주행 제어기도 차량 명령 인터페이스에 연결할 수 있다.
 
 ```text
-CYVOX MX → /joy → joystick_teleop_node
-                    → /vehicle/manual_command
-                    → morai_udp_sender_node → MORAI UDP
+CYVOX MX → /joy ───────────────┐
+                               ├→ joystick_teleop_node
+/localization/odometry ────────┘   → /vehicle/manual_command
+                                   → morai_udp_sender_node → MORAI UDP
 ```
 
 ## 준비
@@ -65,15 +66,25 @@ rostopic echo /vehicle/manual_command
 | RT | 가속 |
 | LT | 브레이크 |
 | RT와 LT를 모두 놓음 | 가속·브레이크 0, 타력 주행 |
+| A | D(주행) |
+| B | N(중립) |
+| X | R(후진) |
+| Y | P(주차) |
 
-첫 버전의 기어는 `D`로 고정된다. 조이스틱 명령이 0.25초 이상 끊기면 마지막
-가속을 유지하지 않고 가속 0, 조향 0, 브레이크 0.5를 전송한다.
+기어는 버튼을 누른 순간 선택되고 다음 선택까지 유지된다. 기본 설정에서는
+`/localization/odometry` 속도가 `0.5 m/s` 이하일 때만 변경된다. 속도 토픽이
+없거나 0.5초 이상 갱신되지 않았으면 변경을 거부한다. 주행 중 누른 버튼을 계속
+누르고 있어도 감속 후 뒤늦게 변경되지 않으므로, 정차 후 버튼을 다시 눌러야 한다.
+
+조이스틱 명령이 0.25초 이상 끊기면 마지막 가속을 유지하지 않고 가속 0, 조향 0,
+브레이크 0.5를 전송한다. 이때 마지막으로 선택한 기어는 유지한다.
 
 ## 주요 토픽
 
 | 토픽 | 타입 | 설명 |
 | --- | --- | --- |
 | `/joy` | `sensor_msgs/Joy` | Linux 조이스틱 원시 축·버튼 |
+| `/localization/odometry` | `nav_msgs/Odometry` | 기어 변경 판단용 차량 속도 |
 | `/vehicle/manual_command` | `vehicle_control/VehicleCommand` | 정규화된 차량 명령 |
 
 ## 설정
@@ -90,6 +101,14 @@ rostopic echo /vehicle/manual_command
 | `accel_inverted` | `true` | CYVOX RT의 `+1 → -1` 방향을 가속 `0 → 1`로 변환 |
 | `steering_inverted` | `false` | 좌우 방향 반전 |
 | `steering_deadzone` | `0.05` | 중앙 유격 제거 |
+| `drive_button` | `0` | D 선택(A) |
+| `neutral_button` | `1` | N 선택(B) |
+| `reverse_button` | `2` | R 선택(X) |
+| `park_button` | `3` | P 선택(Y) |
+| `initial_gear` | `4` | 시작 기어(D) |
+| `maximum_gear_change_speed_mps` | `0.5` | 기어 변경 허용 최고 속도 |
+| `odometry_topic` | `/localization/odometry` | 속도 입력 토픽 |
+| `odometry_timeout` | `0.5` | 속도 입력 유효 시간 |
 | `destination_ip` | `127.0.0.1` | MORAI PC 주소 |
 | `destination_port` | `9093` | MORAI Cmd Control 수신 port |
 | `send_rate` | `50.0` | UDP 명령 송신 주기 |
@@ -104,8 +123,9 @@ rostopic echo /vehicle/manual_command
 
 ```text
 joy_mapper.*             CYVOX 축을 차량 명령으로 변환
+gear_selector.*           버튼·속도로 P/R/N/D 선택
 command_watchdog.*       오래된 명령을 안전 명령으로 교체
-morai_ctrl_packet.*      MORAI 59바이트 패킷 직렬화
+morai_ctrl_packet.*      대회용 MORAI 55바이트 패킷 직렬화
 udp_sender.*             UDP datagram 송신
 joystick_teleop_node.cpp ROS Joy 입출력
 morai_udp_sender_node.cpp ROS 명령과 UDP 연결

@@ -7,7 +7,7 @@
 
 namespace vehicle_control {
 
-using MoraiCtrlPacket = std::array<std::uint8_t, 59U>;
+using MoraiCtrlPacket = std::array<std::uint8_t, 55U>;
 
 MoraiCtrlPacket encodeMoraiCtrlPacket(const ControlCommand& command);
 

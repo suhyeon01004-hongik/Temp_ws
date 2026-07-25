@@ -59,7 +59,8 @@ class MoraiUdpSenderNode {
  private:
   void onCommand(const vehicle_control::VehicleCommand::ConstPtr& message) {
     latest_command_ =
-        ControlCommand(message->accel, message->brake, message->steering, 4U);
+        ControlCommand(message->accel, message->brake, message->steering,
+                       message->gear);
     has_command_ = true;
     last_command_time_ = ros::WallTime::now();
   }
