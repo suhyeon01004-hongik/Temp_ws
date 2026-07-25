@@ -15,8 +15,14 @@ MORAI IONIQ 5의 차량-local 축을 그대로 사용한다.
 - ROS 기준 frame: `base_link`
 - 지면 기준 보조 frame: `base_footprint`
 
-센서 위치는 모두 `base_link` 기준이다. 현재 단순 차체 box는 센서와 TF를
-확인하기 위한 RViz 형상이며 정밀 외장이나 동역학 모델이 아니다.
+`base_footprint -> base_link`는 `z=0.37 m`다. 즉 `base_footprint`는 뒷차축
+중앙의 지면 투영점이고 `base_link`는 실제 바퀴 회전축 높이다. 센서 위치는 모두
+`base_link` 기준이므로 MORAI Sensor Edit의 장착값을 그대로 사용한다.
+
+RViz 차체는 정밀 외장이나 동역학 모델이 아닌 좌표 확인용 단순 형상이다.
+`base_link` 기준 차체 범위는 뒤 `x=-0.790 m`, 앞 `x=3.845 m`이며 뒷바퀴
+중심은 `x=0`, 앞바퀴 중심은 `x=3.000 m`다. 따라서 GPS가 흰 차체의 정중앙이
+아니라 뒷차축 위에 보이는 것이 정상이다.
 
 ## 현재 센서 TF
 
@@ -37,11 +43,15 @@ MORAI IONIQ 5의 차량-local 축을 그대로 사용한다.
 
 | 파일 | 수정 대상 |
 | --- | --- |
-| `config/vehicle_specs.yaml` | 차량 길이·폭·높이, wheelbase, 조향 한계, 기준 frame |
+| `config/vehicle_specs.yaml` | 차량 제원, RViz 차체·바퀴 형상, 기준 frame |
 | `config/molit_2026_sensor_mounts.yaml` | 센서 `frame_id`, `xyz_m`, `rpy_deg`, 카메라 해상도·FOV |
 | `config/morai_presets/0725demo.json` | MORAI에서 실제로 불러오는 현재 센서 preset |
 | `urdf/ioniq5_base.xacro` | RViz용 차체 형상 |
 | `urdf/molit_sensors.xacro` | 센서 link와 fixed joint 생성 방식 |
+
+`dimensions.height_m`는 MORAI가 제공한 차량 제원값이고,
+`visualization.body_height_m`는 좌표 확인용 RViz box 높이다. 서로 용도가
+다르므로 RViz 외형을 조정할 때 차량 제원값을 바꾸지 않는다.
 
 현재 MORAI load 파일은 `config/morai_presets/0725demo.json`이다.
 `0716demo.json`과 `2026_molit_comp_cam_set.json`은 이전 원본 비교용이므로 현재
@@ -70,6 +80,7 @@ launch 인자는 다음과 같다.
 
 이 패키지는 별도 센서 토픽을 발행하지 않는다. `robot_state_publisher`가
 `/robot_description`을 읽고 `/tf_static`에 고정 센서 TF를 발행한다.
+RobotModel에는 차체·바퀴와 함께 GPS 안테나와 LiDAR 장착 형상도 표시된다.
 
 ## 센서 장착값 변경 절차
 

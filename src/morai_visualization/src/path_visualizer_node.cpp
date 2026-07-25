@@ -55,10 +55,14 @@ class PathVisualizerNode {
     private_node_.param<std::string>(
         "marker_topic", marker_topic_, "/visualization/path");
     private_node_.param<std::string>("frame_id", frame_id_, "map");
+    private_node_.param<std::string>("base_frame_id", base_frame_id_,
+                                     "base_link");
     private_node_.param("global_line_width", global_line_width_, 0.15);
     private_node_.param("local_line_width", local_line_width_, 0.35);
-    private_node_.param("current_position_diameter",
-                        current_position_diameter_, 1.0);
+    private_node_.param("vehicle_origin_diameter",
+                        vehicle_origin_diameter_, 0.30);
+    private_node_.param("vehicle_origin_label_height",
+                        vehicle_origin_label_height_, 0.35);
     private_node_.param("nearest_point_diameter", nearest_point_diameter_,
                         0.7);
     private_node_.param("show_global_path_start", show_global_path_start_,
@@ -67,14 +71,15 @@ class PathVisualizerNode {
     private_node_.param("global_start_text_height",
                         global_start_text_height_, 1.0);
 
-    if (frame_id_.empty() || marker_topic_.empty() ||
+    if (frame_id_.empty() || base_frame_id_.empty() || marker_topic_.empty() ||
         global_path_topic_.empty() || local_path_topic_.empty() ||
         localization_topic_.empty()) {
       throw std::invalid_argument(
           "visualizer topic names and frame IDs must not be empty");
     }
     if (global_line_width_ <= 0.0 || local_line_width_ <= 0.0 ||
-        current_position_diameter_ <= 0.0 ||
+        vehicle_origin_diameter_ <= 0.0 ||
+        vehicle_origin_label_height_ <= 0.0 ||
         nearest_point_diameter_ <= 0.0 || global_start_diameter_ <= 0.0 ||
         global_start_text_height_ <= 0.0) {
       throw std::invalid_argument("visualizer sizes must be positive");
@@ -111,6 +116,22 @@ class PathVisualizerNode {
     visualization_msgs::Marker output;
     output.header.frame_id = frame_id_;
     output.header.stamp = ros::Time::now();
+    output.ns = marker_namespace;
+    output.id = id;
+    output.type = type;
+    output.action = visualization_msgs::Marker::ADD;
+    output.pose.orientation.w = 1.0;
+    return output;
+  }
+
+  visualization_msgs::Marker vehicleMarker(
+      const std::string& marker_namespace, int id, int type) const {
+    visualization_msgs::Marker output;
+    output.header.frame_id = base_frame_id_;
+    // Vehicle-attached markers must follow the latest base_link TF rather than
+    // being frozen at the localization message timestamp.
+    output.header.stamp = ros::Time(0);
+    output.frame_locked = true;
     output.ns = marker_namespace;
     output.id = id;
     output.type = type;
@@ -170,22 +191,31 @@ class PathVisualizerNode {
     publish();
   }
 
-  void appendCurrentPositionMarkers(
+  void appendVehicleAndNearestMarkers(
       visualization_msgs::MarkerArray* markers) const {
-    visualization_msgs::Marker current =
-        marker("current_position", 0, visualization_msgs::Marker::SPHERE);
-    current.pose.position = current_pose_.pose.position;
-    current.pose.position.z = current_position_diameter_ * 0.5;
-    current.scale.x = current_position_diameter_;
-    current.scale.y = current_position_diameter_;
-    current.scale.z = current_position_diameter_;
-    current.color = color(0.95, 0.1, 0.1);
-    markers->markers.push_back(current);
+    visualization_msgs::Marker origin =
+        vehicleMarker("vehicle_origin", 0,
+                      visualization_msgs::Marker::SPHERE);
+    origin.scale.x = vehicle_origin_diameter_;
+    origin.scale.y = vehicle_origin_diameter_;
+    origin.scale.z = vehicle_origin_diameter_;
+    origin.color = color(0.95, 0.1, 0.1);
+    markers->markers.push_back(origin);
+
+    visualization_msgs::Marker origin_label =
+        vehicleMarker("vehicle_origin", 1,
+                      visualization_msgs::Marker::TEXT_VIEW_FACING);
+    origin_label.pose.position.z =
+        vehicle_origin_diameter_ + vehicle_origin_label_height_;
+    origin_label.scale.z = vehicle_origin_label_height_;
+    origin_label.color = color(1.0, 0.25, 0.2);
+    origin_label.text = "REAR AXLE";
+    markers->markers.push_back(origin_label);
 
     visualization_msgs::Marker heading =
-        marker("vehicle_heading", 0, visualization_msgs::Marker::ARROW);
-    heading.pose = current_pose_.pose;
-    heading.pose.position.z = 0.35;
+        vehicleMarker("vehicle_heading", 0,
+                      visualization_msgs::Marker::ARROW);
+    heading.pose.position.z = 0.15;
     heading.scale.x = 2.5;
     heading.scale.y = 0.35;
     heading.scale.z = 0.35;
@@ -297,7 +327,7 @@ class PathVisualizerNode {
                      color(1.0, 0.45, 0.0), 0.12));
     }
     if (has_current_position_) {
-      appendCurrentPositionMarkers(&markers);
+      appendVehicleAndNearestMarkers(&markers);
     }
     marker_publisher_.publish(markers);
   }
@@ -309,9 +339,11 @@ class PathVisualizerNode {
   std::string localization_topic_;
   std::string marker_topic_;
   std::string frame_id_;
+  std::string base_frame_id_;
   double global_line_width_ = 0.15;
   double local_line_width_ = 0.35;
-  double current_position_diameter_ = 1.0;
+  double vehicle_origin_diameter_ = 0.30;
+  double vehicle_origin_label_height_ = 0.35;
   double nearest_point_diameter_ = 0.7;
   bool show_global_path_start_ = true;
   double global_start_diameter_ = 1.4;

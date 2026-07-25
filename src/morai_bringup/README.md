@@ -1,9 +1,9 @@
 # 통합 실행 구성
 
 `morai_bringup`은 차량 description, MORAI UDP 센서 수신, Velodyne LiDAR,
-GPS localization과 path manager를 필요한 조합으로 실행한다. 센서 파싱,
-좌표 변환, 경로 계산 같은 기능은 구현하지 않고 각 패키지의 launch와 config를
-연결하는 역할만 맡는다.
+GPS localization과 path manager의 **실행 조합**을 관리한다. 센서 파싱,
+좌표 변환, 경로 계산 같은 기능은 구현하지 않고 각 기능 패키지의 launch와
+config를 연결하는 역할만 맡는다.
 
 상세한 설정 변경 절차는
 [`docs/CONFIGURATION_GUIDE_KO.md`](docs/CONFIGURATION_GUIDE_KO.md)를 참고한다.
@@ -12,8 +12,13 @@ GPS localization과 path manager를 필요한 조합으로 실행한다. 센서 
 
 | launch | 용도 | 기본 실행 항목 |
 | --- | --- | --- |
-| `molit_2026_sensors.launch` | 전체 센서/주행 스택 구성 | description, UDP bridge, LiDAR |
-| `gps_localization_path_test.launch` | GPS+IMU부터 경로·RViz까지 통합 점검 | GPS+IMU bridge, direct localization, path manager, path visualizer, RViz |
+| `molit_2026_sensors.launch` | 센서 계층 | description, UDP bridge, LiDAR |
+| `molit_2026_localization.launch` | localization 계층 | GPS projector, IMU adapter, direct fusion |
+| `molit_2026_path_manager.launch` | 경로 계층 | global/local path publisher |
+| `molit_2026_stack.launch` | 운영 전체 stack | 위 세 계층 전부 |
+| `visualization/path.launch` | 경로 시각화 | path marker, path RViz |
+| `visualization/lidar.launch` | LiDAR 시각화 | LiDAR RViz |
+| `visualization/path_lidar.launch` | 통합 시각화 | path marker, path+LiDAR RViz |
 
 ## MORAI에서 먼저 불러올 파일
 
@@ -25,7 +30,7 @@ GPS localization과 path manager를 필요한 조합으로 실행한다. 센서 
 빈 시험 시나리오는 전역경로 시작점에 정지한 Ego 차량만 포함하며 NPC, 보행자,
 오브젝트와 자동 주행 waypoint는 포함하지 않는다.
 
-전체 센서 기본 실행:
+센서만 실행:
 
 ```bash
 source /opt/ros/noetic/setup.bash
@@ -33,47 +38,78 @@ source ~/catkin_ws/install/setup.bash
 roslaunch morai_bringup molit_2026_sensors.launch
 ```
 
-GPS+IMU localization과 경로를 함께 사용할 때:
+localization만 실행:
 
 ```bash
-roslaunch morai_bringup molit_2026_sensors.launch \
-  use_gps_localization:=true
+roslaunch morai_bringup molit_2026_localization.launch
 ```
 
-GPS+IMU/localization/path/RViz만 점검할 때:
+path manager만 실행:
 
 ```bash
-roslaunch morai_bringup gps_localization_path_test.launch
+roslaunch morai_bringup molit_2026_path_manager.launch
 ```
 
-`gps_localization_path_test.launch`는 운영 기능의 임시 복사본이 아니라 여러
-패키지를 한 번에 확인하기 위한 통합 시험 launch다. localization만 독립
-확인하려면 `morai_localization` launch를 직접 실행해야 한다.
+센서부터 path manager까지 전체 실행:
+
+```bash
+roslaunch morai_bringup molit_2026_stack.launch
+```
+
+시각화는 기능 stack과 별도 터미널에서 실행한다.
+
+```bash
+roslaunch morai_bringup path.launch
+roslaunch morai_bringup lidar.launch
+roslaunch morai_bringup path_lidar.launch
+```
+
+`visualization/` 아래 launch는 `morai_visualization`의 기능을 다시 구현하지
+않고 팀 공통 실행 진입점만 제공한다. 시각화 launch는 센서나 localization을
+자동으로 실행하지 않는다. ROS1은 패키지 내부의 launch 파일을 재귀 검색하므로
+실행 명령에는 `visualization/` 폴더명을 쓰지 않는다.
 
 ## 주요 launch 인자
+
+### 센서 launch
 
 | 인자 | 기본값 | 역할 |
 | --- | --- | --- |
 | `publish_description` | `true` | 차량 URDF와 센서 고정 TF 발행 |
 | `use_lidar` | `true` | 공식 Velodyne VLP-16 driver 실행 |
-| `use_gps_localization` | `false` | GPS projector, IMU adapter와 direct fusion 실행 |
-| `use_path_manager` | `use_gps_localization` 값 | 전역/local path publisher 실행 |
 | `bridge_config` | `molit_2026.yaml` | UDP 스트림 설정 선택 |
 | `vehicle_config` | IONIQ 5 기본 YAML | 차량 제원 설정 선택 |
 | `sensor_mount_config` | 대회 센서 YAML | 센서 frame·장착값 선택 |
-| `localization_config` | K-City 기본 YAML | 좌표 투영 설정 선택 |
-| `route_path_config` | K-City 경로 YAML | local path 정책 선택 |
-| `global_path_file` | 공식 대회 경로 | 전역경로 파일 선택 |
 | `lidar_device_ip` | 빈 문자열 | 허용할 LiDAR 송신 IP |
 | `lidar_port` | `2368` | LiDAR UDP 포트 |
 | `lidar_hz` | `15.0` | RPM 계산용 LiDAR 주기 |
 | `lidar_frame` | `lidar_link` | PointCloud2 frame |
+| `lidar_cut_angle` | `0.0` | 매 회전의 PointCloud 절단 방향(rad) |
+| `lidar_fixed_frame` | 빈 문자열 | 주행 왜곡 보정에 사용할 고정 frame |
+| `lidar_target_frame` | 빈 문자열 | 보정 후 PointCloud 출력 frame |
+
+### Localization과 path launch
+
+| launch | 인자 | 역할 |
+| --- | --- | --- |
+| `molit_2026_localization.launch` | `config` | localization YAML 선택 |
+| `molit_2026_path_manager.launch` | `config` | local path 정책 YAML 선택 |
+| `molit_2026_path_manager.launch` | `path_file` | 전역경로 파일 선택 |
+
+`molit_2026_stack.launch`는 위 인자를 각각 `localization_config`,
+`route_path_config`, `global_path_file` 이름으로 받아 해당 계층에 전달한다.
+전체 stack에서는 localization TF를 사용할 수 있으므로
+`lidar_fixed_frame:=map`, `lidar_target_frame:=lidar_link`가 기본값이다.
+센서만 실행할 때는 두 값이 비어 있어 localization 없이도 동작한다.
 
 LiDAR 없이 실행하려면:
 
 ```bash
 roslaunch morai_bringup molit_2026_sensors.launch use_lidar:=false
 ```
+
+센서 launch에는 localization이나 path manager의 on/off 옵션을 두지 않는다.
+필요한 계층의 launch만 선택하거나 전체가 필요하면 stack launch를 사용한다.
 
 ## 설정의 소유 패키지
 
@@ -115,6 +151,22 @@ MORAI IMU UDP :9303
 ```
 
 LiDAR는 MORAI native Velodyne UDP를 공식 driver가 받아 `/lidar3D`로 발행한다.
+좌표 TF는 `map -> base_footprint -> base_link -> sensor_link` 순서다.
+`base_link`는 뒷차축 중앙, `base_footprint`는 그 지면 투영점이며 둘의 높이
+차이는 현재 `0.37 m`다.
+
+LiDAR PointCloud는 `lidar_cut_angle:=0.0`을 기준으로 매번 같은 방위에서
+한 회전을 끝낸다. 이 값은 패킷 개수로만 스캔을 자를 때 발생하던 회전하는
+경계와 중복 구간을 방지한다. 전체 stack에서는 각 패킷 시각의
+`map -> lidar_link` TF를 사용해 차량 이동에 의한 스캔 왜곡도 보정한다.
+세 계층을 별도 launch로 실행하면서 같은 보정을 사용하려면 센서 launch에
+다음 인자를 준다.
+
+```bash
+roslaunch morai_bringup molit_2026_sensors.launch \
+  lidar_fixed_frame:=map \
+  lidar_target_frame:=lidar_link
+```
 
 ## 팀원이 변경할 때 주의할 점
 
@@ -126,8 +178,8 @@ LiDAR는 MORAI native Velodyne UDP를 공식 driver가 받아 `/lidar3D`로 발�
   켤 때는 fusion 구현을 필터 기반으로 교체해야 한다.
 - map이나 시나리오가 바뀌면 localization offset과 전역경로 파일을 한 쌍으로
   검증한다.
-- `use_path_manager`만 켤 수는 있지만 localization 입력 토픽이 없으면
-  `/global_path`만 나오고 `/local_path`는 나오지 않는다.
+- path manager만 실행하면 `/global_path`는 즉시 나오지만,
+  `/localization/pose`가 들어오기 전에는 `/local_path`가 나오지 않는다.
 - 이미 실행 중인 launch는 새 install 내용을 자동으로 읽지 않으므로 빌드 후
   기존 프로세스를 종료하고 다시 실행한다.
 

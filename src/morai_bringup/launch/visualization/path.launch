@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="config"
+       default="$(find morai_visualization)/config/path_visualizer.yaml"/>
+  <arg name="start_rviz" default="true"/>
+  <arg name="publish_map_frame_anchor" default="true"/>
+  <arg name="rviz_config"
+       default="$(find morai_visualization)/rviz/path.rviz"/>
+
+  <include file="$(find morai_visualization)/launch/path.launch">
+    <arg name="config" value="$(arg config)"/>
+    <arg name="start_rviz" value="$(arg start_rviz)"/>
+    <arg name="publish_map_frame_anchor"
+         value="$(arg publish_map_frame_anchor)"/>
+    <arg name="rviz_config" value="$(arg rviz_config)"/>
+  </include>
+</launch>

@@ -97,15 +97,15 @@ source ~/catkin_ws/install/setup.bash
 roslaunch morai_bringup molit_2026_sensors.launch
 ```
 
-GPS+IMU localization/path를 시험할 때:
+GPS+IMU localization/path까지 함께 실행하되 LiDAR를 끌 때:
 
 ```bash
-roslaunch morai_bringup gps_localization_path_test.launch start_rviz:=false
+roslaunch morai_bringup molit_2026_stack.launch use_lidar:=false
 ```
 
-이 launch는 `molit_2026_localization.yaml`을 사용해 GPS `9301`과 IMU `9303`만
-받는다. GPS projector만 따로 시험할 때는 `molit_2026_gps_only.yaml`을
-`bridge_config`로 지정할 수 있다.
+GPS `9301`과 IMU `9303`만 받으려면 센서 bringup의 `bridge_config`에
+`molit_2026_localization.yaml`을 지정한다. GPS projector만 따로 시험할 때는
+`molit_2026_gps_only.yaml`을 지정할 수 있다.
 
 LiDAR 없이 카메라/GPS/IMU를 모두 받을 때:
 

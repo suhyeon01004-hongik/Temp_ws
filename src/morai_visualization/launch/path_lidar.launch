@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="config"
+       default="$(find morai_visualization)/config/path_visualizer.yaml"/>
+  <arg name="start_rviz" default="true"/>
+  <arg name="publish_map_frame_anchor" default="true"/>
+  <arg name="lidar_topic" default="/lidar3D"/>
+  <arg name="rviz_config"
+       default="$(find morai_visualization)/rviz/path_lidar.rviz"/>
+
+  <!-- 경로 marker 노드는 기존 path.launch를 그대로 재사용한다. -->
+  <include file="$(find morai_visualization)/launch/path.launch">
+    <arg name="config" value="$(arg config)"/>
+    <arg name="start_rviz" value="false"/>
+    <arg name="publish_map_frame_anchor"
+         value="$(arg publish_map_frame_anchor)"/>
+  </include>
+
+  <node if="$(arg start_rviz)"
+        pkg="rviz"
+        type="rviz"
+        name="path_lidar_rviz"
+        args="-d $(arg rviz_config)"
+        output="screen">
+    <remap from="/lidar3D" to="$(arg lidar_topic)"/>
+    <env name="DISABLE_ROS1_EOL_WARNINGS" value="1"/>
+  </node>
+</launch>

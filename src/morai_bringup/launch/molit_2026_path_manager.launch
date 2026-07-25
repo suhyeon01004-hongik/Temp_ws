@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="config"
+       default="$(find morai_path_manager)/config/molit_2026_kcity_route_path.yaml"/>
+  <arg name="path_file"
+       default="$(find morai_path_manager)/map/R-KR_PG_K-City_2025/2026_molit_comp_global_path.txt"/>
+
+  <include file="$(find morai_path_manager)/launch/route_path_publisher.launch">
+    <arg name="config" value="$(arg config)"/>
+    <arg name="path_file" value="$(arg path_file)"/>
+  </include>
+</launch>

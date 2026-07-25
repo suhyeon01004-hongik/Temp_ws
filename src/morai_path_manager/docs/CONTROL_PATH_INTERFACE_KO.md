@@ -38,17 +38,16 @@ latched가 아니므로, 현재 구독자가 마지막 메시지를 보더라도
 
 ## 실행과 점검
 
-GPS UTM projector와 route path publisher를 함께 실행하려면 다음을 사용한다.
+센서 입력부터 localization과 route path publisher까지 함께 실행하려면 다음을
+사용한다.
 
 ```bash
-roslaunch morai_bringup molit_2026_sensors.launch \
-  use_lidar:=false use_gps_localization:=true
+roslaunch morai_bringup molit_2026_stack.launch use_lidar:=false
 ```
 
-`use_path_manager`는 기본적으로 `use_gps_localization` 값을 따른다. GPS projector
-대신 같은 위치 토픽 계약을 만족하는 다른 localization을 사용할 때는
-`use_gps_localization:=false use_path_manager:=true`로 path manager만 활성화할
-수 있다.
+센서, localization, path manager는 서로 다른 bringup launch다. GPS projector
+대신 같은 `/localization/pose` 계약을 만족하는 다른 localization을 사용할
+때는 `molit_2026_path_manager.launch`만 실행하면 된다.
 
 토픽 타입/발행자와 갱신 상태는 다음처럼 확인한다.
 
@@ -107,14 +106,15 @@ source devel/setup.bash
 설정 파일은 다음처럼 전달한다.
 
 ```bash
-# Combined bringup
-roslaunch morai_bringup molit_2026_sensors.launch \
-  use_lidar:=false use_gps_localization:=true \
+# 전체 stack
+roslaunch morai_bringup molit_2026_stack.launch \
+  use_lidar:=false \
   route_path_config:=/absolute/path/to/route.yaml
 
-# Standalone route publisher
-roslaunch morai_path_manager route_path_publisher.launch \
-  config:=/absolute/path/to/route.yaml
+# Path manager bringup
+roslaunch morai_bringup molit_2026_path_manager.launch \
+  config:=/absolute/path/to/route.yaml \
+  path_file:=/absolute/path/to/global_path.txt
 ```
 
 node는 시작 시 파라미터를 읽으므로, 실행 중 변경한 값은 node를 재시작한 뒤
@@ -124,7 +124,7 @@ node는 시작 시 파라미터를 읽으므로, 실행 중 변경한 값은 nod
 
 ### `/local_path`가 나오지 않음
 
-1. `use_gps_localization:=true`로 실행했는지 확인한다.
+1. `rosnode list | grep route_path_publisher`로 path node가 실행 중인지 확인한다.
 2. `rostopic hz /localization/pose`로 GPS+IMU 최종 pose가 실제로 발행되는지
    확인한다. GPS blackout/`NO_FIX` 또는 IMU 중단에는 새 local path가 없다.
 3. `rostopic echo -n 1 /localization/pose/header`로 frame이 `map`인지 확인한다.

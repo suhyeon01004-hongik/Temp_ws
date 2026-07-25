@@ -37,7 +37,8 @@ GPS local point + normalized IMU
 
 `base_link`는 URDF에서 이미 `base_footprint`의 자식이다. 따라서 localization은
 `map -> base_link`를 직접 발행하지 않고 `map -> base_footprint`를 발행한다.
-두 frame의 현재 고정 변환이 identity라 차량 기준점의 위치와 yaw는 같다.
+두 frame은 XY와 회전은 같고 URDF의 고정 z 오프셋만 `0.37 m`다. localization의
+평면 X/Y/yaw는 여전히 MORAI 뒷차축 중앙 기준이다.
 
 ## 입출력
 
@@ -117,14 +118,24 @@ GPS projector, IMU adapter와 최종 localization 실행:
 roslaunch morai_localization localization.launch
 ```
 
-이 launch들은 UDP bridge를 실행하지 않는다. 실제 MORAI 입력을 포함한 통합
-시험은 다음을 사용한다.
+팀 공통 bringup 진입점으로 localization만 실행:
 
 ```bash
-roslaunch morai_bringup gps_localization_path_test.launch
+roslaunch morai_bringup molit_2026_localization.launch
 ```
 
-이 통합 launch의 bridge profile은 GPS `9301`과 IMU `9303`을 함께 수신한다.
+이 launch들은 UDP bridge를 실행하지 않는다. 실제 MORAI 입력부터 path
+manager까지 전체 운영 계층은 다음을 사용한다.
+
+```bash
+roslaunch morai_bringup molit_2026_stack.launch
+```
+
+경로 화면은 전체 stack을 실행한 상태에서 별도 터미널로 연다.
+
+```bash
+roslaunch morai_bringup path.launch
+```
 
 ## 확인
 
@@ -140,11 +151,13 @@ rosrun tf tf_echo map base_link
 RViz:
 
 ```bash
-roslaunch morai_visualization path.launch
+roslaunch morai_bringup path.launch
 ```
 
-빨간 구가 최종 위치, 빨간 화살표가 IMU yaw다. RViz Target Frame은
-`base_link`라 차량을 화면 중앙에 두고 차량 진행방향에 맞춰 map을 볼 수 있다.
+작은 빨간 구와 `REAR AXLE` 글자가 차량 원점이고 빨간 화살표가 IMU yaw에 따른
+차량 전방이다. RViz Target Frame은 `base_link`라 차량을 화면 중앙에 두고 차량
+진행방향에 맞춰 map을 볼 수 있다. LiDAR까지 함께 보려면
+`roslaunch morai_bringup path_lidar.launch`를 사용한다.
 
 ## noise를 켤 때
 
