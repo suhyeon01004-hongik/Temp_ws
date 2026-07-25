@@ -19,7 +19,7 @@ joystick_teleop_node:
 morai_udp_sender_node:
   command_topic: /vehicle/manual_command
   destination_ip: 127.0.0.1
-  destination_port: 9095
+  destination_port: 9093
   send_rate: 50.0
   command_timeout: 0.25
   safe_brake: 0.5

@@ -152,7 +152,7 @@ roslaunch morai_visualization lidar.launch
 ### CYVOX 조이스틱으로 차량 조작
 
 MORAI에서 Ego Controller를 `AV-ExternalCtrl`로 선택하고 Cmd Control 수신
-port를 `9095`로 설정한 뒤 실행한다.
+port를 `9093`으로 설정한 뒤 실행한다.
 
 ```bash
 roslaunch vehicle_control cyvox_morai.launch

@@ -20,7 +20,7 @@ class MoraiUdpSenderNode {
   MoraiUdpSenderNode() : private_node_("~") {
     std::string command_topic;
     std::string destination_ip;
-    int destination_port = 9095;
+    int destination_port = 9093;
     double send_rate = 50.0;
     double command_timeout = 0.25;
     double safe_brake = 0.5;
@@ -28,7 +28,7 @@ class MoraiUdpSenderNode {
         "command_topic", command_topic, "/vehicle/manual_command");
     private_node_.param<std::string>(
         "destination_ip", destination_ip, "127.0.0.1");
-    private_node_.param("destination_port", destination_port, 9095);
+    private_node_.param("destination_port", destination_port, 9093);
     private_node_.param("send_rate", send_rate, 50.0);
     private_node_.param("command_timeout", command_timeout, 0.25);
     private_node_.param("safe_brake", safe_brake, 0.5);

@@ -36,7 +36,7 @@ source ~/catkin_ws/install/setup.bash
 
 1. Driving Info의 Ego Controller를 `AV-ExternalCtrl`로 선택한다.
 2. `Edit → Network Settings → Ego Network → Cmd Control`을 UDP로 설정한다.
-3. 같은 PC라면 IP를 `127.0.0.1`, MORAI가 명령을 받는 port를 `9095`로 맞춘다.
+3. 같은 PC라면 IP를 `127.0.0.1`, MORAI가 명령을 받는 port를 `9093`으로 맞춘다.
 4. 다른 PC라면 YAML의 `destination_ip`를 MORAI PC 주소로 바꾼다.
 
 MORAI의 Cmd Control 수신 port와 YAML의 `destination_port`는 반드시 같아야
@@ -88,7 +88,7 @@ rostopic echo /vehicle/manual_command
 | `steering_inverted` | `false` | 좌우 방향 반전 |
 | `steering_deadzone` | `0.05` | 중앙 유격 제거 |
 | `destination_ip` | `127.0.0.1` | MORAI PC 주소 |
-| `destination_port` | `9095` | MORAI Cmd Control 수신 port |
+| `destination_port` | `9093` | MORAI Cmd Control 수신 port |
 | `send_rate` | `50.0` | UDP 명령 송신 주기 |
 | `command_timeout` | `0.25` | 연결 끊김 판단 시간 |
 | `safe_brake` | `0.5` | 연결 끊김 시 브레이크 |
