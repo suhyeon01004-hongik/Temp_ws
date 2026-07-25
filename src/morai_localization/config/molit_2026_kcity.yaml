@@ -1,0 +1,43 @@
+# Scenario-dependent localization values verified against the competition
+# global_info.json for R-KR_PG_K-City_2025.
+config_verified: true
+map_id: R-KR_PG_K-City_2025
+crs: EPSG:32652
+input_topic: /sensors/gps/fix
+output_topic: /localization/gps/local_point
+frame_id: map
+utm_zone: 52
+utm_northern: true
+east_offset: 302595.0
+north_offset: 4124145.0
+
+# IMU adapter: raw MORAI IMU validation and quaternion normalization.
+imu_input_topic: /sensors/imu/data
+imu_output_topic: /localization/imu/data
+imu_frame_id: imu_link
+minimum_quaternion_norm: 1.0e-6
+
+# Direct GPS + IMU localization. No averaging, interpolation, EKF, or UKF.
+gps_local_topic: /localization/gps/local_point
+pose_topic: /localization/pose
+odometry_topic: /localization/odometry
+base_frame_id: base_link
+# base_link already has base_footprint as its URDF parent. Publishing
+# map->base_link would give base_link two TF parents, so localization owns
+# map->base_footprint instead.
+tf_child_frame_id: base_footprint
+publish_tf: true
+
+# MORAI IMU uses x-forward/y-left/z-up. Keep these at +1 and 0 degrees unless
+# the straight-ahead simulator validation shows a map-heading offset.
+yaw_sign: 1.0
+yaw_offset_deg: 0.0
+
+# Reject stale or widely separated observations; these gates are not filters.
+max_sensor_skew_sec: 0.2
+max_gps_age_sec: 1.0
+max_imu_age_sec: 0.25
+
+# Odometry linear velocity is an unfiltered finite difference of GPS positions.
+minimum_velocity_dt_sec: 0.001
+maximum_velocity_dt_sec: 1.0

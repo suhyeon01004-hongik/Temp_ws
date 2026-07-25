@@ -1,0 +1,182 @@
+# MORAI UDP 센서 브리지
+
+`morai_udp_bridge`는 MORAI가 UDP로 보내는 카메라, GPS와 IMU 패킷을 ROS1
+센서 메시지로 변환한다. 이 패키지는 MORAI 패킷 규격에 직접 종속된다.
+
+차량 제어, GPS map 투영, 경로 생성, 센서 장착 TF와 LiDAR packet decoding은
+담당하지 않는다. MORAI native VLP-16 데이터는 `morai_bringup`이 공식 ROS
+`velodyne` driver와 연결한다.
+
+## 처리하는 스트림
+
+| 센서 | UDP 입력 | ROS 출력 | 타입 |
+| --- | --- | --- | --- |
+| 전방 카메라 | `9291` | `/image/front/compressed` | `sensor_msgs/CompressedImage` |
+| 전방 카메라 정보 | 위와 동일 | `/image/front/camera_info` | `sensor_msgs/CameraInfo` |
+| 좌측 카메라 | `9293` | `/image/left/compressed` | `sensor_msgs/CompressedImage` |
+| 좌측 카메라 정보 | 위와 동일 | `/image/left/camera_info` | `sensor_msgs/CameraInfo` |
+| 우측 카메라 | `9295` | `/image/right/compressed` | `sensor_msgs/CompressedImage` |
+| 우측 카메라 정보 | 위와 동일 | `/image/right/camera_info` | `sensor_msgs/CameraInfo` |
+| GPS | `9301` | `/sensors/gps/fix` | `sensor_msgs/NavSatFix` |
+| IMU | `9303` | `/sensors/imu/data` | `sensor_msgs/Imu` |
+| 상태 진단 | - | `/diagnostics` | `diagnostic_msgs/DiagnosticArray` |
+
+GPS quality가 0이면 `STATUS_NO_FIX`와 NaN 좌표를 발행한다. 패킷이 완전히
+끊겼을 때는 마지막 센서 값을 재발행하지 않고 `/diagnostics`에서 stale 상태로
+알린다.
+
+MORAI는 GGA와 그 외 NMEA 문장을 별도 UDP datagram으로 보낼 수 있다. 브리지는
+`NavSatFix`에 필요한 GGA만 발행하며, GGA가 없는 정상 부가 문장은 파싱 오류로
+집계하지 않는다. GGA 체크섬 오류, 비 ASCII 데이터 등 실제 손상은 계속
+`parse_errors`에 포함된다.
+
+LiDAR 관련 토픽은 bringup과 Velodyne driver가 발행한다.
+
+| 토픽 | 타입 | 역할 |
+| --- | --- | --- |
+| `/sensors/lidar/packets` | `velodyne_msgs/VelodyneScan` | VLP-16 원시 패킷 |
+| `/lidar3D` | `sensor_msgs/PointCloud2` | 변환된 point cloud |
+
+## 설정 파일
+
+| 파일 | 용도 |
+| --- | --- |
+| `config/molit_2026.yaml` | 카메라 3대, GPS, IMU 전체 수신 |
+| `config/molit_2026_localization.yaml` | localization/path 시험용 GPS+IMU 수신 |
+| `config/molit_2026_gps_only.yaml` | GPS projector 단독 시험용 |
+
+현재 `0725demo.json`의 GPS는 30 Hz, Destination Port `9301`이고 IMU는
+50 Hz, Destination Port `9303`이며
+`config/molit_2026.yaml`, `config/molit_2026_localization.yaml`과 일치한다.
+GPS-only 설정에는 IMU worker가 없으므로 IMU 토픽을 확인할 때는 위 두 설정 중
+하나를 사용한다.
+
+IMU UDP의 12-byte auxiliary header는 MORAI 버전에 따라 값이 채워질 수 있다.
+공식 SensorExample과 동일하게 이 영역은 건너뛰고 quaternion, 각속도와
+선가속도 payload만 해석한다. 파싱 실패 시 node 로그에 패킷 크기와 실패 이유가
+5초 주기로 출력된다.
+
+IMU header의 data-length 필드도 MORAI 버전마다 의미가 달라 공식 예제처럼
+고정값을 강제하지 않는다. 대신 지원 패킷 전체 길이, header, tail, timestamp와
+10개 측정값의 유한성을 검증한다.
+
+공통 파라미터:
+
+| 파라미터 | 설명 |
+| --- | --- |
+| `bind_ip` | ROS PC에서 UDP socket을 bind할 주소. 보통 `0.0.0.0` |
+| `allowed_source_ip` | 허용할 MORAI PC IP. 빈 문자열이면 제한 없음 |
+| `receive_buffer_bytes` | 각 UDP socket이 요청하는 수신 버퍼 |
+| `diagnostics_period` | `/diagnostics` 발행 주기(초) |
+
+센서별 파라미터:
+
+| 파라미터 | 설명 |
+| --- | --- |
+| `enabled` | GPS/IMU worker 활성화 여부 |
+| `port` | MORAI Sensor Edit의 Destination Port와 동일해야 함 |
+| `topic` | ROS 출력 토픽 |
+| `camera_info_topic` | 카메라 정보 출력 토픽 |
+| `packet_layout` | `auto` 또는 명시적 MORAI packet layout |
+| `use_sensor_time` | 패킷 sensor time 사용 여부. 기본은 ROS 수신 시각 |
+| `stale_timeout` | 이 시간 동안 수신이 없으면 stale 진단 |
+| `max_hz` | 허용 주기 상한 감시값. `0`이면 비활성 |
+
+센서 `frame_id`, 카메라 해상도와 FOV는
+`ioniq5_description/config/molit_2026_sensor_mounts.yaml`이 단일 원본이다.
+bringup이 이 YAML을 `sensor_setup` 파라미터로 bridge에 주입한다.
+
+## 실행
+
+일반적으로 bridge를 단독 실행하지 않고 bringup으로 description metadata와
+함께 실행한다.
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/install/setup.bash
+roslaunch morai_bringup molit_2026_sensors.launch
+```
+
+GPS+IMU localization/path를 시험할 때:
+
+```bash
+roslaunch morai_bringup gps_localization_path_test.launch start_rviz:=false
+```
+
+이 launch는 `molit_2026_localization.yaml`을 사용해 GPS `9301`과 IMU `9303`만
+받는다. GPS projector만 따로 시험할 때는 `molit_2026_gps_only.yaml`을
+`bridge_config`로 지정할 수 있다.
+
+LiDAR 없이 카메라/GPS/IMU를 모두 받을 때:
+
+```bash
+roslaunch morai_bringup molit_2026_sensors.launch use_lidar:=false
+```
+
+## MORAI Sensor Edit와 맞출 값
+
+MORAI의 각 센서 설정에서 다음을 확인한다.
+
+- Destination IP: ROS PC의 실제 네트워크 IP
+- Destination Port: 해당 YAML의 `port`
+- GPS 현재 포트: `9301`
+- IMU 현재 포트: `9303`
+- 센서 장착 위치: `ioniq5_description` YAML 및 `0725demo.json`과 동일
+
+포트 변경 시 MORAI preset과 bridge YAML을 함께 바꾼다. 같은 IP/port에 두
+프로세스를 동시에 실행하면 `Address already in use`가 발생하므로 기존 bridge가
+실행 중인지 먼저 확인한다.
+
+## UDP 수신 버퍼
+
+고해상도 카메라 burst를 받으려면 Linux `net.core.rmem_max`가 YAML의
+`receive_buffer_bytes` 이상이어야 한다.
+
+```bash
+sysctl net.core.rmem_max
+```
+
+현재 운영 설정 설치:
+
+```bash
+sudo install -m 0644 \
+  "$(rospack find morai_bringup)/config/99-morai-udp.conf" \
+  /etc/sysctl.d/99-morai-udp.conf
+sudo sysctl --system
+```
+
+## 내부 구조
+
+```text
+include/morai_udp_bridge/  C++ 공개 헤더
+src/protocol.cpp           순수 Camera/GPS/IMU parser와 JPEG 조립
+src/transport.cpp          UDP worker와 diagnostics
+src/streams.cpp            ROS publisher
+src/bridge_node.cpp        ROS 파라미터 조립과 실행 진입점
+```
+
+패킷 규격 수정은 `protocol.*`, socket/진단 수정은 `transport.*`, ROS 메시지
+변환은 `streams.*`에서 한다. 파서 변경 시 실제 MORAI packet fixture와 단위
+테스트를 함께 추가한다.
+
+## 확인과 문제 진단
+
+```bash
+rostopic hz /image/front/compressed
+rostopic echo -n 1 /sensors/gps/fix
+rostopic hz /sensors/imu/data
+rostopic hz /lidar3D
+rostopic echo /diagnostics
+ss -lunp | grep -E ':(9291|9293|9295|9301|9303|2368) '
+```
+
+- 토픽이 없으면 worker 활성화와 launch에서 선택한 config를 확인한다.
+- 토픽은 있으나 값이 갱신되지 않으면 MORAI Destination IP/Port와 방화벽을
+  확인한다.
+- 특정 송신자 패킷만 버려지면 `allowed_source_ip`를 확인한다.
+- 카메라 drop이 많으면 수신 버퍼와 `/diagnostics`의 packet/error 카운터를
+  확인한다.
+
+대회 규정과 네트워크 관련 근거는
+[`docs/2026_RULES_AND_NETWORK.md`](docs/2026_RULES_AND_NETWORK.md)에 정리되어
+있다.

@@ -1,0 +1,14 @@
+build/
+devel/
+install/
+logs/
+.catkin_tools/
+
+.vscode/
+.idea/
+
+*.bag
+*.bag.active
+*.log
+*.pyc
+__pycache__/

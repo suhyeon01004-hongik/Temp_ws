@@ -1,0 +1,13 @@
+# Runtime topics, frames, and marker styling for path visualization.
+global_path_topic: /global_path
+local_path_topic: /local_path
+localization_topic: /localization/pose
+marker_topic: /visualization/path
+frame_id: map
+global_line_width: 0.15
+local_line_width: 0.35
+current_position_diameter: 1.0
+nearest_point_diameter: 0.7
+show_global_path_start: true
+global_start_diameter: 1.4
+global_start_text_height: 1.0

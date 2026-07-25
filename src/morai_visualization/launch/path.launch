@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="config"
+       default="$(find morai_visualization)/config/path_visualizer.yaml"/>
+  <arg name="start_rviz" default="true"/>
+  <arg name="publish_map_frame_anchor" default="true"/>
+  <arg name="rviz_config"
+       default="$(find morai_visualization)/rviz/path.rviz"/>
+
+  <!--
+    This identity child lets RViz recognize map before the first valid
+    localization TF arrives. It does not invent a vehicle pose or orientation.
+  -->
+  <node if="$(arg publish_map_frame_anchor)"
+        pkg="tf2_ros"
+        type="static_transform_publisher"
+        name="path_visualization_map_anchor"
+        args="0 0 0 0 0 0 1 map path_visualization_anchor"/>
+
+  <node pkg="morai_visualization"
+        type="path_visualizer_node"
+        name="path_visualizer"
+        output="screen"
+        required="true">
+    <rosparam command="load" file="$(arg config)"/>
+  </node>
+
+  <node if="$(arg start_rviz)"
+        pkg="rviz"
+        type="rviz"
+        name="path_rviz"
+        args="-d $(arg rviz_config)"
+        output="screen">
+    <env name="DISABLE_ROS1_EOL_WARNINGS" value="1"/>
+  </node>
+</launch>

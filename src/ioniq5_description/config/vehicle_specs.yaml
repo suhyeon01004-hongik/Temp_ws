@@ -1,0 +1,26 @@
+# 규정집 v1.0의 2023_Hyundai_ioniq5 값. 실제 양산차 제원이 아니라 대회
+# 시뮬레이터 규정값을 소프트웨어 계약으로 사용한다.
+model: 2023_Hyundai_ioniq5
+source: 2026_MOLIT_competition_rules_v1.0
+
+dimensions:
+  length_m: 4.635
+  width_m: 1.892
+  height_m: 2.434
+  wheelbase_m: 3.000
+  front_overhang_m: 0.845
+  rear_overhang_m: 0.790
+
+steering:
+  minimum_turning_radius_m: 5.87
+  maximum_wheel_angle_deg: 40.0
+
+# base_link는 MORAI IONIQ 5 Sensor Edit의 차량-local 원점인 rear axle 중앙이다.
+# 차체 box는 정밀 외장 모델이 아니라 RViz 표시용 단순 형상이며 현재 base_link
+# xy를 box 중심으로 놓는 시각화 가정만 사용한다.
+frames:
+  footprint: base_footprint
+  base: base_link
+  sensor_reference: morai_vehicle_local_origin
+  visualization_assumption: body_box_center_at_base_link_xy_ground_z
+  rear_axle_origin_verified: true

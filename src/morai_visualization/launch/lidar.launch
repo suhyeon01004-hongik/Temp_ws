@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="start_rviz" default="true"/>
+  <arg name="rviz_config"
+       default="$(find morai_visualization)/rviz/lidar.rviz"/>
+
+  <node if="$(arg start_rviz)"
+        pkg="rviz"
+        type="rviz"
+        name="lidar_rviz"
+        args="-d $(arg rviz_config)"
+        output="screen"/>
+</launch>

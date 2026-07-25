@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="ioniq5_base" params="specs">
+    <xacro:property name="length" value="${specs['dimensions']['length_m']}"/>
+    <xacro:property name="width" value="${specs['dimensions']['width_m']}"/>
+    <xacro:property name="height" value="${specs['dimensions']['height_m']}"/>
+
+    <material name="ioniq5_body_color">
+      <color rgba="0.55 0.62 0.67 0.75"/>
+    </material>
+
+    <link name="base_footprint"/>
+
+    <link name="base_link">
+      <visual>
+        <origin xyz="0 0 ${height / 2.0}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${length} ${width} ${height}"/>
+        </geometry>
+        <material name="ioniq5_body_color"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${height / 2.0}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${length} ${width} ${height}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="base_footprint_to_base_link" type="fixed">
+      <parent link="base_footprint"/>
+      <child link="base_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+  </xacro:macro>
+</robot>
