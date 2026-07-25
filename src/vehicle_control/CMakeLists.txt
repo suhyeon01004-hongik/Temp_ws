@@ -42,6 +42,57 @@ target_link_libraries(vehicle_control_core
   ${catkin_LIBRARIES}
 )
 
+add_executable(joystick_teleop_node
+  src/joystick_teleop_node.cpp
+)
+target_compile_features(joystick_teleop_node PUBLIC cxx_std_14)
+target_link_libraries(joystick_teleop_node
+  vehicle_control_core
+  ${catkin_LIBRARIES}
+)
+add_dependencies(joystick_teleop_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+add_executable(morai_udp_sender_node
+  src/morai_udp_sender_node.cpp
+)
+target_compile_features(morai_udp_sender_node PUBLIC cxx_std_14)
+target_link_libraries(morai_udp_sender_node
+  vehicle_control_core
+  ${catkin_LIBRARIES}
+)
+add_dependencies(morai_udp_sender_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+install(
+  TARGETS
+    vehicle_control_core
+    joystick_teleop_node
+    morai_udp_sender_node
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(
+  DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
+install(
+  DIRECTORY config launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+install(
+  FILES README.md
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
 if(CATKIN_ENABLE_TESTING)
   catkin_add_gtest(test_joy_mapper
     test/test_joy_mapper.cpp

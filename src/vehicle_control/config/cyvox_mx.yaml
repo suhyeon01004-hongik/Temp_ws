@@ -1,0 +1,25 @@
+joy_node:
+  dev: /dev/input/by-id/usb-ShanWan_Xbox360_For_Windows_10F36D6-joystick
+  deadzone: 0.05
+  autorepeat_rate: 20.0
+  coalesce_interval: 0.001
+  default_trig_val: false
+
+joystick_teleop_node:
+  joy_topic: /joy
+  command_topic: /vehicle/manual_command
+  steering_axis: 0
+  brake_axis: 2
+  accel_axis: 5
+  steering_inverted: false
+  brake_inverted: false
+  accel_inverted: false
+  steering_deadzone: 0.05
+
+morai_udp_sender_node:
+  command_topic: /vehicle/manual_command
+  destination_ip: 127.0.0.1
+  destination_port: 9095
+  send_rate: 50.0
+  command_timeout: 0.25
+  safe_brake: 0.5
