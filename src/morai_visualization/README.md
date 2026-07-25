@@ -32,8 +32,9 @@ path와 LiDAR 시각화를 별도 launch/profile로 나눠 두었으므로 한�
 
 ## Path 시각화 실행
 
-먼저 `/global_path`, `/local_path`,
-`/localization/pose`와 `map -> base_link` TF의 발행 노드가 있어야 한다.
+모든 표시를 보려면 `/global_path`, `/local_path`, `/localization/pose`와
+`map -> base_link` TF가 필요하다. 입력이 일부 없더라도 visualizer는 실행되며
+수신한 항목만 표시한다.
 
 ```bash
 source /opt/ros/noetic/setup.bash

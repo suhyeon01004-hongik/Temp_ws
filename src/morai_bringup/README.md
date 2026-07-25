@@ -15,6 +15,16 @@ GPS localization과 path manager를 필요한 조합으로 실행한다. 센서 
 | `molit_2026_sensors.launch` | 전체 센서/주행 스택 구성 | description, UDP bridge, LiDAR |
 | `gps_localization_path_test.launch` | GPS+IMU부터 경로·RViz까지 통합 점검 | GPS+IMU bridge, direct localization, path manager, path visualizer, RViz |
 
+## MORAI에서 먼저 불러올 파일
+
+| 종류 | 저장소 기준 파일 | MORAI `SaveFile` 대상 |
+| --- | --- | --- |
+| 센서 preset | [`0725demo.json`](../ioniq5_description/config/morai_presets/0725demo.json) | `Sensor/25.S4.MolitComp03/` |
+| 빈 시험 시나리오 | [`2026_molit_path_start_empty.json`](config/morai_scenarios/R_KR_PR_K-city_2025/2026_molit_path_start_empty.json) | `Scenario/R_KR_PR_K-city_2025/` |
+
+빈 시험 시나리오는 전역경로 시작점에 정지한 Ego 차량만 포함하며 NPC, 보행자,
+오브젝트와 자동 주행 waypoint는 포함하지 않는다.
+
 전체 센서 기본 실행:
 
 ```bash
@@ -74,6 +84,7 @@ roslaunch morai_bringup molit_2026_sensors.launch use_lidar:=false
 | GPS CRS·map offset, yaw 보정·동기화 | `molit_2026_kcity.yaml` | `morai_localization` |
 | 전역경로·local path 20 pose 정책 | `molit_2026_kcity_route_path.yaml` | `morai_path_manager` |
 | marker topic·색상 크기 | `path_visualizer.yaml` | `morai_visualization` |
+| MORAI 시험 시나리오 | `config/morai_scenarios/**/*.json` | `morai_bringup` |
 | 어떤 노드를 함께 실행할지 | `launch/*.launch` | `morai_bringup` |
 
 같은 값을 bringup에 다시 적어 두지 않는다. 노드 동작값은 소유 패키지의 config,
