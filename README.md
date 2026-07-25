@@ -4,7 +4,7 @@ MORAI SIM의 센서 데이터를 ROS1으로 받아 차량 위치와 경로를 �
 검증하기 위한 Team Stier 워크스페이스다.
 
 현재 구현 범위는 **센서 수신, 차량·센서 TF, GPS+IMU localization,
-전역·지역경로 발행, RViz 시각화**다. 차량 제어기는 아직 구현하지 않았다.
+전역·지역경로 발행, RViz 시각화, 조이스틱 수동 제어**다.
 
 ## 현재 구성
 
@@ -39,7 +39,9 @@ flowchart LR
     VEL --> CLOUD["/lidar3D"]
     CLOUD --> VIZ
 
-    PATH_TOPIC -. "향후 입력" .-> CTRL["차량 제어기<br/>(미구현)"]
+    JOY["CYVOX MX"] -->|/joy| CTRL["vehicle_control"]
+    CTRL -->|Ego Ctrl Cmd UDP| SIM3["MORAI Ego 차량"]
+    PATH_TOPIC -. "향후 자율주행 입력" .-> CTRL
     BRINGUP["morai_bringup"] -. "launch 조합" .-> UDP
     BRINGUP -.-> LOC
     BRINGUP -.-> PATH
@@ -69,6 +71,7 @@ map
 | [`morai_path_manager`](src/morai_path_manager/README.md) | 전역경로 로드와 전방 20 pose local path |
 | [`morai_visualization`](src/morai_visualization/README.md) | Path/LiDAR RViz profile과 디버그 marker |
 | [`morai_bringup`](src/morai_bringup/README.md) | 위 패키지의 launch와 config 조합 |
+| [`vehicle_control`](src/vehicle_control/README.md) | CYVOX 조이스틱 입력과 MORAI 차량 제어 UDP 송신 |
 
 패키지는 자신의 기능만 담당한다. 예를 들어 UDP bridge는 지도 좌표를 계산하지
 않고, visualization은 localization이나 경로를 생성하지 않는다.
@@ -146,6 +149,18 @@ roslaunch morai_visualization path.launch
 roslaunch morai_visualization lidar.launch
 ```
 
+### CYVOX 조이스틱으로 차량 조작
+
+MORAI에서 Ego Controller를 `AV-ExternalCtrl`로 선택하고 Cmd Control 수신
+port를 `9093`으로 설정한 뒤 실행한다.
+
+```bash
+roslaunch vehicle_control cyvox_morai.launch
+```
+
+기본 조작은 왼쪽 스틱 좌우 조향, RT 가속, LT 브레이크다. 두 트리거를 놓으면
+자동 브레이크 없이 타력 주행 명령을 보낸다.
+
 ## 핵심 토픽
 
 | 단계 | 토픽 | 타입 |
@@ -159,6 +174,8 @@ roslaunch morai_visualization lidar.launch
 | 전역경로 | `/global_path` | `nav_msgs/Path` |
 | 제어용 부분경로 | `/local_path` | `nav_msgs/Path` |
 | Path marker | `/visualization/path` | `visualization_msgs/MarkerArray` |
+| 조이스틱 입력 | `/joy` | `sensor_msgs/Joy` |
+| 수동 차량 명령 | `/vehicle/manual_command` | `vehicle_control/VehicleCommand` |
 | 센서 상태 | `/diagnostics` | `diagnostic_msgs/DiagnosticArray` |
 
 ## 설정을 바꿀 때
@@ -172,6 +189,7 @@ roslaunch morai_visualization lidar.launch
 | UTM offset·yaw·동기화 | `morai_localization/config/molit_2026_kcity.yaml` |
 | 전역/local path 정책 | `morai_path_manager/config/molit_2026_kcity_route_path.yaml` |
 | RViz marker | `morai_visualization/config/path_visualizer.yaml` |
+| 조이스틱 축·안전 동작·제어 UDP | `vehicle_control/config/cyvox_mx.yaml` |
 | 실행 조합 | `morai_bringup/launch/*.launch` |
 
 센서 위치나 port를 바꾸면 MORAI preset과 ROS YAML을 함께 수정한다. 지도나
@@ -185,6 +203,8 @@ rostopic hz /sensors/imu/data
 rostopic echo -n 1 /localization/pose
 rostopic echo -n 1 /global_path
 rostopic echo -n 1 /local_path
+rostopic echo -n 1 /joy
+rostopic echo -n 1 /vehicle/manual_command
 rosrun tf tf_echo map base_link
 rostopic echo /diagnostics
 ```
@@ -202,7 +222,8 @@ rostopic echo /diagnostics
 
 - GPS/IMU noise를 끈 상태를 기준으로 하며 필터는 아직 적용하지 않았다.
 - noise를 켤 때는 localization fusion을 EKF/UKF 계층으로 교체해야 한다.
-- 차량 제어기와 실제 경로 추종은 아직 구현하지 않았다.
+- CYVOX 수동 제어는 기어 `D`만 지원하며 제어권 중재는 아직 구현하지 않았다.
+- 전역·지역경로를 사용하는 자율 경로 추종 제어기는 아직 구현하지 않았다.
 - K-City가 아닌 map에서는 UTM offset과 전역경로를 다시 설정해야 한다.
 
 규정과 초기 코드 검토 내용은 [`REVIEW.md`](REVIEW.md), 경로 제어 인터페이스는

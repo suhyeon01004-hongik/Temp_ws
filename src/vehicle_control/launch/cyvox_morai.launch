@@ -1,0 +1,18 @@
+<launch>
+  <arg name="config_file"
+       default="$(find vehicle_control)/config/cyvox_mx.yaml"/>
+
+  <group ns="vehicle_control">
+    <rosparam command="load" file="$(arg config_file)"/>
+
+    <node pkg="joy" type="joy_node" name="joy_node" output="screen">
+      <remap from="joy" to="/joy"/>
+    </node>
+
+    <node pkg="vehicle_control" type="joystick_teleop_node"
+          name="joystick_teleop_node" output="screen"/>
+
+    <node pkg="vehicle_control" type="morai_udp_sender_node"
+          name="morai_udp_sender_node" output="screen"/>
+  </group>
+</launch>
