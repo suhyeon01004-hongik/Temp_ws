@@ -133,11 +133,11 @@ class BringupLaunchCompositionTest(unittest.TestCase):
         self.assertNotIn("use_gps_localization", argument_names)
         self.assertNotIn("use_path_manager", argument_names)
 
-    def test_full_stack_enables_lidar_ego_motion_compensation(self):
+    def test_full_stack_does_not_require_map_tf_during_lidar_startup(self):
         root = self.load_launch("molit_2026_stack.launch")
         defaults = self.argument_defaults(root)
-        self.assertEqual(defaults["lidar_fixed_frame"], "map")
-        self.assertEqual(defaults["lidar_target_frame"], "lidar_link")
+        self.assertEqual(defaults["lidar_fixed_frame"], "")
+        self.assertEqual(defaults["lidar_target_frame"], "")
 
         sensors = root.find(
             "./include[@file='$(find morai_bringup)/launch/"
