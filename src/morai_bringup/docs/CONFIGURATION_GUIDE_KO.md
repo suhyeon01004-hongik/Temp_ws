@@ -410,21 +410,15 @@ roslaunch morai_bringup molit_2026_sensors.launch \
 
 기본 `lidar_cut_angle:=0.0`은 PointCloud 경계를 매번 같은 방위에 고정한다.
 센서 단독 launch는 localization에 의존하지 않도록 `lidar_fixed_frame`과
-`lidar_target_frame`을 비워 둔다. localization을 함께 사용하는 전체 stack은
-각각 `map`, `lidar_link`를 기본값으로 사용해 회전 중 차량 이동을 패킷별로
-보정한다.
+`lidar_target_frame`을 비워 둔다. 전체 stack도 두 값이 빈 문자열인 안전한
+기본값을 사용한다.
 
-기능 계층을 별도로 실행하면서 모션 보정을 켜려면:
-
-```bash
-roslaunch morai_bringup molit_2026_sensors.launch \
-  lidar_fixed_frame:=map \
-  lidar_target_frame:=lidar_link
-```
-
-이 경우 `map -> base_footprint -> base_link -> lidar_link` TF가 같은 시간축으로
-계속 발행되어야 한다. localization을 실행하지 않거나 TF가 끊기면
-`lidar_fixed_frame`과 `lidar_target_frame`을 빈 값으로 사용한다.
+현재 설치된 Velodyne transform nodelet은 시작 시
+`map -> base_footprint -> base_link -> lidar_link` 연결이 아직 만들어지지
+않았을 때 `tf2::ConnectivityException`으로 manager 전체를 종료할 수 있다.
+따라서 `lidar_fixed_frame:=map`, `lidar_target_frame:=lidar_link`를 launch
+시작과 동시에 지정하지 않는다. TF 연결을 확인한 뒤 transform nodelet을
+활성화하는 준비 절차가 구현되기 전까지 두 값은 비워 둔다.
 
 LiDAR 없이 실행:
 

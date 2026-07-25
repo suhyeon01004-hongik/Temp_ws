@@ -98,9 +98,9 @@ roslaunch morai_bringup path_lidar.launch
 
 `molit_2026_stack.launch`는 위 인자를 각각 `localization_config`,
 `route_path_config`, `global_path_file` 이름으로 받아 해당 계층에 전달한다.
-전체 stack에서는 localization TF를 사용할 수 있으므로
-`lidar_fixed_frame:=map`, `lidar_target_frame:=lidar_link`가 기본값이다.
-센서만 실행할 때는 두 값이 비어 있어 localization 없이도 동작한다.
+센서 launch와 전체 stack 모두 `lidar_fixed_frame`,
+`lidar_target_frame`의 기본값은 빈 문자열이다. 따라서 LiDAR가 시작될 때
+localization TF가 아직 없어도 nodelet manager가 종료되지 않는다.
 
 LiDAR 없이 실행하려면:
 
@@ -157,16 +157,13 @@ LiDAR는 MORAI native Velodyne UDP를 공식 driver가 받아 `/lidar3D`로 발�
 
 LiDAR PointCloud는 `lidar_cut_angle:=0.0`을 기준으로 매번 같은 방위에서
 한 회전을 끝낸다. 이 값은 패킷 개수로만 스캔을 자를 때 발생하던 회전하는
-경계와 중복 구간을 방지한다. 전체 stack에서는 각 패킷 시각의
-`map -> lidar_link` TF를 사용해 차량 이동에 의한 스캔 왜곡도 보정한다.
-세 계층을 별도 launch로 실행하면서 같은 보정을 사용하려면 센서 launch에
-다음 인자를 준다.
+경계와 중복 구간을 방지한다.
 
-```bash
-roslaunch morai_bringup molit_2026_sensors.launch \
-  lidar_fixed_frame:=map \
-  lidar_target_frame:=lidar_link
-```
+Velodyne의 `fixed_frame` 기반 주행 왜곡 보정은 현재 기본 비활성화 상태다.
+설치된 driver는 시작 시 `map -> lidar_link`가 아직 연결되지 않으면
+`tf2::ConnectivityException`으로 nodelet manager 전체를 종료할 수 있다.
+향후 TF 준비 상태를 확인한 뒤 transform nodelet을 시작하는 별도 실행 절차를
+추가한 후 활성화한다.
 
 ## 팀원이 변경할 때 주의할 점
 

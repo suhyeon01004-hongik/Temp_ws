@@ -21,8 +21,8 @@
   <arg name="lidar_hz" default="15.0"/>
   <arg name="lidar_frame" default="lidar_link"/>
   <arg name="lidar_cut_angle" default="0.0"/>
-  <arg name="lidar_fixed_frame" default="map"/>
-  <arg name="lidar_target_frame" default="lidar_link"/>
+  <arg name="lidar_fixed_frame" default=""/>
+  <arg name="lidar_target_frame" default=""/>
 
   <include file="$(find morai_bringup)/launch/molit_2026_sensors.launch">
     <arg name="publish_description" value="$(arg publish_description)"/>
