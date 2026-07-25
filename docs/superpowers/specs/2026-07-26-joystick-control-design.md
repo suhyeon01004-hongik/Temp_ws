@@ -60,7 +60,10 @@ CYVOX MX
 
 ### `morai_udp_sender_node`
 
-`VehicleCommand`를 MORAI 공식 `#MoraiCtrlCmd$` 55바이트 UDP 패킷으로 직렬화한다.
+`VehicleCommand`를 MORAI 공식 최신 예제의 `#MoraiCtrlCmd$` 59바이트 UDP
+패킷으로 직렬화한다. 구형 문서의 55바이트 형식과 달리 최신 형식은 rear
+steering 4바이트가 추가됐으며, 대회 시뮬레이터와 같은 세대인 2026년 공식
+예제를 기준으로 한다.
 
 - CtrlMode: `2` (`AutoMode`)
 - Gear: 첫 버전에서 `4` (`D`)
@@ -113,7 +116,7 @@ MORAI 목적지는 같은 PC에서 실행하는 환경을 기준으로 `127.0.0.
 - 트리거 초기값 `-1`이 `0`으로 변환되는지 시험한다.
 - 트리거 최댓값 `1`이 `1`로 변환되는지 시험한다.
 - 조향 deadzone, 반전, 범위 제한을 시험한다.
-- MORAI UDP 패킷이 정확히 55바이트이고 header, tail, 제어 필드가 규격과
+- MORAI UDP 패킷이 정확히 59바이트이고 header, tail, 제어 필드가 규격과
   일치하는지 시험한다.
 - 제한 시간이 지나면 안전 명령이 선택되는지 시험한다.
 - catkin 빌드 후 실제 `/joy`, `/vehicle/manual_command`, UDP 송신을 확인한다.
