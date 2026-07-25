@@ -112,41 +112,39 @@ Destination Port는 위 값과 맞춘다.
 
 ## 실행
 
-### GPS+IMU localization과 경로 확인
+### 기능별 실행
 
-가장 먼저 사용할 통합 시험이다. GPS/IMU bridge, localization, path manager,
-차량 TF, path RViz를 함께 실행하며 LiDAR와 Camera는 실행하지 않는다.
-
-```bash
-roslaunch morai_bringup gps_localization_path_test.launch
-```
-
-RViz 없이 토픽만 확인하려면:
-
-```bash
-roslaunch morai_bringup gps_localization_path_test.launch start_rviz:=false
-```
-
-### 전체 센서 실행
-
-Camera/GPS/IMU와 공식 Velodyne driver를 실행한다.
+센서 계층만 실행하면 Camera/GPS/IMU bridge와 공식 Velodyne driver가 올라온다.
 
 ```bash
 roslaunch morai_bringup molit_2026_sensors.launch
 ```
 
-Localization과 path manager도 함께 켜려면:
+Localization만 실행:
 
 ```bash
-roslaunch morai_bringup molit_2026_sensors.launch \
-  use_gps_localization:=true
+roslaunch morai_bringup molit_2026_localization.launch
 ```
 
-이 launch는 RViz를 자동으로 열지 않는다. 필요한 화면을 별도 터미널에서 연다.
+Path manager만 실행:
 
 ```bash
-roslaunch morai_visualization path.launch
-roslaunch morai_visualization lidar.launch
+roslaunch morai_bringup molit_2026_path_manager.launch
+```
+
+센서, localization, path manager 전체 실행:
+
+```bash
+roslaunch morai_bringup molit_2026_stack.launch
+```
+
+각 기능 launch는 RViz를 자동으로 열지 않는다. 필요한 화면을 별도 터미널에서
+bringup의 시각화 진입점으로 연다.
+
+```bash
+roslaunch morai_bringup path.launch
+roslaunch morai_bringup lidar.launch
+roslaunch morai_bringup path_lidar.launch
 ```
 
 ### CYVOX 조이스틱으로 차량 조작

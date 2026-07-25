@@ -25,6 +25,12 @@ target_link_libraries(path_visualizer_node
   ${catkin_LIBRARIES}
 )
 
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  catkin_add_nosetests(test/test_visualization_assets.py)
+  add_rostest(test/path_visualizer.test)
+endif()
+
 install(
   TARGETS path_visualizer_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

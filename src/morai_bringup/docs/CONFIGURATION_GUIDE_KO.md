@@ -22,8 +22,11 @@ MORAI Sensor preset JSON
                 └─ 포트 ─────> morai_udp_bridge/config/
                                molit_2026.yaml
 
-morai_bringup/launch/molit_2026_sensors.launch
-  └─ description, UDP bridge, Velodyne, GPS localization을 조합해 실행
+morai_bringup/launch/
+  ├─ molit_2026_sensors.launch       : description, UDP bridge, Velodyne
+  ├─ molit_2026_localization.launch  : GPS+IMU localization
+  ├─ molit_2026_path_manager.launch  : global/local path
+  └─ molit_2026_stack.launch         : 위 세 계층의 전체 조합
 ```
 
 설정 변경 시 가장 중요한 원칙은 다음 두 가지다.
@@ -382,6 +385,9 @@ morai_bringup/launch/molit_2026_sensors.launch
 <arg name="lidar_port" default="2368"/>
 <arg name="lidar_hz" default="15.0"/>
 <arg name="lidar_frame" default="lidar_link"/>
+<arg name="lidar_cut_angle" default="0.0"/>
+<arg name="lidar_fixed_frame" default=""/>
+<arg name="lidar_target_frame" default=""/>
 ```
 
 - `use_lidar`: Velodyne driver 실행 여부
@@ -389,6 +395,9 @@ morai_bringup/launch/molit_2026_sensors.launch
 - `lidar_port`: MORAI LiDAR destination port
 - `lidar_hz`: LiDAR 회전 주기
 - `lidar_frame`: PointCloud2의 frame ID
+- `lidar_cut_angle`: PointCloud 한 회전을 끝내는 고정 방위(rad)
+- `lidar_fixed_frame`: 패킷별 주행 왜곡 보정의 고정 frame
+- `lidar_target_frame`: 보정된 PointCloud의 출력 frame
 
 실행할 때 임시 변경:
 
@@ -398,6 +407,24 @@ roslaunch morai_bringup molit_2026_sensors.launch \
   lidar_port:=2368 \
   lidar_hz:=15.0
 ```
+
+기본 `lidar_cut_angle:=0.0`은 PointCloud 경계를 매번 같은 방위에 고정한다.
+센서 단독 launch는 localization에 의존하지 않도록 `lidar_fixed_frame`과
+`lidar_target_frame`을 비워 둔다. localization을 함께 사용하는 전체 stack은
+각각 `map`, `lidar_link`를 기본값으로 사용해 회전 중 차량 이동을 패킷별로
+보정한다.
+
+기능 계층을 별도로 실행하면서 모션 보정을 켜려면:
+
+```bash
+roslaunch morai_bringup molit_2026_sensors.launch \
+  lidar_fixed_frame:=map \
+  lidar_target_frame:=lidar_link
+```
+
+이 경우 `map -> base_footprint -> base_link -> lidar_link` TF가 같은 시간축으로
+계속 발행되어야 한다. localization을 실행하지 않거나 TF가 끊기면
+`lidar_fixed_frame`과 `lidar_target_frame`을 빈 값으로 사용한다.
 
 LiDAR 없이 실행:
 
@@ -466,16 +493,15 @@ NORTH -> north_offset
 config_verified: false
 ```
 
-좌표계와 원점을 공식 자료로 확인한 뒤에만 `true`로 바꾼다. GPS local projector를
-실행하려면 launch 옵션도 별도로 켜야 한다.
+좌표계와 원점을 공식 자료로 확인한 뒤에만 `true`로 바꾼다. 현재 대회 설정은
+검증 완료 상태다. localization만 확인할 때는 전용 bringup을 실행한다.
 
 ```bash
-roslaunch morai_bringup molit_2026_sensors.launch \
-  use_gps_localization:=true
+roslaunch morai_bringup molit_2026_localization.launch
 ```
 
-`config_verified`는 설정을 신뢰할 수 있는지 나타내고, `use_gps_localization`은
-이번 실행에서 노드를 띄울지를 결정한다.
+`config_verified`는 설정을 신뢰할 수 있는지 나타낸다. 센서만 확인할 때는
+`molit_2026_sensors.launch`, 전체 계층은 `molit_2026_stack.launch`를 사용한다.
 
 ## 11. 차량 제원 변경 방법
 
@@ -492,15 +518,21 @@ dimensions:
   height_m: 2.434
   wheelbase_m: 3.000
 
+visualization:
+  body_height_m: 1.605
+  rear_axle_height_m: 0.370
+  wheel_radius_m: 0.370
+
 steering:
   minimum_turning_radius_m: 5.87
   maximum_wheel_angle_deg: 40.0
 ```
 
-차량 모델이 바뀔 때 수정한다. 이 값은 현재 URDF 차체 표시와 향후 제어 geometry의
-기준이다. 현재 `base_link`는 MORAI IONIQ 5의 rear axle 중앙 원점으로 검증해
-사용한다. 차종이나 MORAI 차량 모델을 바꾸면 같은 원점 계약이 유지되는지 다시
-확인한다.
+차량 모델이 바뀔 때 수정한다. `dimensions`는 차량 제원과 향후 제어 geometry,
+`visualization`은 RViz 좌표 확인용 단순 형상의 기준이다. 현재 `base_link`는
+MORAI IONIQ 5의 rear axle 중앙 원점이고 `base_footprint`는 그 원점의 지면
+투영점이다. 두 frame의 z 간격은 `rear_axle_height_m`이다. 차종이나 MORAI 차량
+모델을 바꾸면 같은 원점 계약이 유지되는지 다시 확인한다.
 
 ## 12. 실행 방법
 
@@ -511,17 +543,28 @@ source /opt/ros/noetic/setup.bash
 source ~/catkin_ws/devel/setup.bash
 ```
 
-기본 실행은 Camera, GPS, IMU, LiDAR를 포함한다.
+센서와 UDP bridge만 실행:
 
 ```bash
 roslaunch morai_bringup molit_2026_sensors.launch
 ```
 
-GPS projection, IMU adapter와 direct localization도 실행:
+localization만 실행:
 
 ```bash
-roslaunch morai_bringup molit_2026_sensors.launch \
-  use_gps_localization:=true
+roslaunch morai_bringup molit_2026_localization.launch
+```
+
+path manager만 실행:
+
+```bash
+roslaunch morai_bringup molit_2026_path_manager.launch
+```
+
+센서부터 path manager까지 전체 실행:
+
+```bash
+roslaunch morai_bringup molit_2026_stack.launch
 ```
 
 ## 13. 설정 변경 후 확인 순서
@@ -619,6 +662,18 @@ TF: 추가
 PointCloud2 Topic: /lidar3D
 ```
 
+경로·차량·LiDAR를 함께 보려면 다음 전용 profile을 사용한다.
+
+```bash
+roslaunch morai_bringup path_lidar.launch
+```
+
+이 profile은 기존 path 완전 탑뷰와 같은 화면에 PointCloud2만 추가한다.
+좌표를 `map`에 고정하고 카메라 Target을 `base_link`로 두므로 차량을 중심에
+유지한 채 전역/local 경로와 LiDAR를 함께 표시한다. PointCloud2의
+`Decay Time=0.0`은 최신 cloud를 다음 입력까지 유지해 낮거나 변동하는 발행
+주기에서도 빈 화면 구간이 생기지 않도록 한다.
+
 ## 14. 문제가 생겼을 때 확인할 것
 
 ### Camera가 나오지 않음
@@ -666,7 +721,8 @@ VLP-16 자체의 calibration 실패를 뜻하지 않는다. 함께 `Number of la
 1. `/sensors/gps/fix`가 발행되는지 확인
 2. `/sensors/imu/data`와 `/localization/imu/data`가 발행되는지 확인
 3. GPS status가 `NO_FIX`인지 확인
-4. `use_gps_localization:=true`인지 확인
+4. `rosnode list`에서 `/gps_utm_projector`, `/imu_orientation_adapter`,
+   `/localization_fusion` 노드가 실행 중인지 확인
 5. `config_verified: true`인지 확인
 6. GPS/IMU frame과 timestamp 차이가 localization config 허용값 이내인지 확인
 

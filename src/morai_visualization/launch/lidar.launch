@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="start_rviz" default="true"/>
+  <arg name="lidar_topic" default="/lidar3D"/>
   <arg name="rviz_config"
        default="$(find morai_visualization)/rviz/lidar.rviz"/>
 
@@ -9,5 +10,8 @@
         type="rviz"
         name="lidar_rviz"
         args="-d $(arg rviz_config)"
-        output="screen"/>
+        output="screen">
+    <remap from="/lidar3D" to="$(arg lidar_topic)"/>
+    <env name="DISABLE_ROS1_EOL_WARNINGS" value="1"/>
+  </node>
 </launch>

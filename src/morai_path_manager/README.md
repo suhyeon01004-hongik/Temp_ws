@@ -60,6 +60,16 @@
 
 ## 실행
 
+팀 공통 bringup 진입점:
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/install/setup.bash
+roslaunch morai_bringup molit_2026_path_manager.launch
+```
+
+패키지 자체를 개발하거나 독립 점검할 때:
+
 ```bash
 source /opt/ros/noetic/setup.bash
 source ~/catkin_ws/install/setup.bash
@@ -74,10 +84,16 @@ roslaunch morai_path_manager route_path_publisher.launch \
   path_file:=/absolute/path/to/global_path.txt
 ```
 
-통합 시험:
+센서, localization, path manager 전체 운영 stack:
 
 ```bash
-roslaunch morai_bringup gps_localization_path_test.launch
+roslaunch morai_bringup molit_2026_stack.launch
+```
+
+경로 RViz는 별도 터미널에서 실행:
+
+```bash
+roslaunch morai_bringup path.launch
 ```
 
 ## 경로 파일을 바꿀 때
@@ -95,7 +111,7 @@ roslaunch morai_bringup gps_localization_path_test.launch
 ## 시각화
 
 ```bash
-roslaunch morai_visualization path.launch
+roslaunch morai_bringup path.launch
 ```
 
 표시 의미:

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="start_rviz" default="true"/>
+  <arg name="lidar_topic" default="/lidar3D"/>
+  <arg name="rviz_config"
+       default="$(find morai_visualization)/rviz/lidar.rviz"/>
+
+  <include file="$(find morai_visualization)/launch/lidar.launch">
+    <arg name="start_rviz" value="$(arg start_rviz)"/>
+    <arg name="lidar_topic" value="$(arg lidar_topic)"/>
+    <arg name="rviz_config" value="$(arg rviz_config)"/>
+  </include>
+</launch>

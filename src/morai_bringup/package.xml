@@ -14,8 +14,12 @@
   <exec_depend>morai_path_manager</exec_depend>
   <exec_depend>morai_udp_bridge</exec_depend>
   <exec_depend>morai_visualization</exec_depend>
+  <exec_depend>nodelet</exec_depend>
   <exec_depend>velodyne_driver</exec_depend>
+  <exec_depend>velodyne_laserscan</exec_depend>
   <exec_depend>velodyne_pointcloud</exec_depend>
+
+  <test_depend>python3-nose</test_depend>
 
   <export/>
 </package>
