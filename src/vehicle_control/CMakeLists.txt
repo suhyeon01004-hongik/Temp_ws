@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
     VehicleCommand.msg
+    VehicleStatus.msg
 )
 
 generate_messages(
@@ -38,6 +39,7 @@ add_library(vehicle_control_core
   src/joy_mapper.cpp
   src/morai_ctrl_packet.cpp
   src/morai_vehicle_status_packet.cpp
+  src/udp_receiver.cpp
   src/udp_sender.cpp
 )
 target_compile_features(vehicle_control_core PUBLIC cxx_std_14)
@@ -71,11 +73,27 @@ add_dependencies(morai_udp_sender_node
   ${catkin_EXPORTED_TARGETS}
 )
 
+add_executable(morai_vehicle_status_udp_node
+  src/morai_vehicle_status_udp_node.cpp
+)
+target_compile_features(
+  morai_vehicle_status_udp_node PUBLIC cxx_std_14
+)
+target_link_libraries(morai_vehicle_status_udp_node
+  vehicle_control_core
+  ${catkin_LIBRARIES}
+)
+add_dependencies(morai_vehicle_status_udp_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
 install(
   TARGETS
     vehicle_control_core
     joystick_teleop_node
     morai_udp_sender_node
+    morai_vehicle_status_udp_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -164,6 +182,17 @@ if(CATKIN_ENABLE_TESTING)
       test_morai_vehicle_status_packet PUBLIC cxx_std_14
     )
     target_link_libraries(test_morai_vehicle_status_packet
+      vehicle_control_core
+      ${catkin_LIBRARIES}
+    )
+  endif()
+
+  catkin_add_gtest(test_udp_receiver
+    test/test_udp_receiver.cpp
+  )
+  if(TARGET test_udp_receiver)
+    target_compile_features(test_udp_receiver PUBLIC cxx_std_14)
+    target_link_libraries(test_udp_receiver
       vehicle_control_core
       ${catkin_LIBRARIES}
     )
