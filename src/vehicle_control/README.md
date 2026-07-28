@@ -14,7 +14,8 @@ MORAI → UDP:9094 → morai_vehicle_status_udp_node → /vehicle/status
                                              저속 기어 변경 판단
 
 Home 버튼 → /vehicle/reset_request → morai_sim_reset_node
-                                      → Simulator 창에 i 입력
+                                      → q → i → q → q 입력
+          └→ morai_udp_sender_node가 초기화 중 제어 송신 일시 중지
 ```
 
 ## 준비
@@ -40,11 +41,24 @@ source ~/catkin_ws/install/setup.bash
 
 1. Driving Info의 Ego Controller를 `AV-ExternalCtrl`로 선택한다.
 2. `Edit → Network Settings → Ego Network → Cmd Control`을 UDP로 설정한다.
-3. 같은 PC에서는 Host IP와 Destination IP를 `127.0.0.1`로 설정한다.
-4. Host Port는 `9093`, Destination Port는 `9094`로 설정하고 Connect한다.
+   - Host IP / Destination IP: `127.0.0.1`
+   - Host Port: `9093`
+   - Destination Port: `9094`
+3. `Publisher, Subscriber, Service`에서 `MoraiInfoPublisher`
+   (`Ego Vehicle Status`)를 UDP로 설정한다.
+   - Host IP / Destination IP: `127.0.0.1`
+   - Host Port: `9097`
+   - Destination Port: `9094`
+   - Frequency: `50 Hz`
+4. 두 항목을 Connect한다.
 
 - `9093`: MORAI가 조이스틱 차량 명령을 받는 포트
-- `9094`: 이 패키지가 MORAI Ego Vehicle Status를 받는 포트
+- `9097`: MORAI 상태 Publisher가 사용하는 로컬 송신 포트
+- `9094`: 이 패키지가 MORAI 차량 상태를 받는 포트
+
+현재 사용 중인 MORAI 네트워크 저장 파일도 위 포트로 설정했다. 기존에
+시뮬레이터를 실행 중이었다면 해당 프리셋을 다시 Load하거나 시뮬레이터를
+재시작해야 변경된 포트가 적용된다.
 
 다른 PC의 MORAI를 제어할 때는 `destination_ip`를 MORAI PC 주소로 바꾸고,
 MORAI의 Destination IP는 ROS PC 주소로 지정한다.
@@ -92,9 +106,10 @@ echo "$XDG_SESSION_TYPE"
 xdotool search --onlyvisible --name Simulator
 ```
 
-초기화 기능은 X11의 MORAI `Simulator` 창에 키보드 `i`를 보내는 방식이다.
-`xdotool`이 없거나 Wayland 세션이면 차량 조작 노드는 계속 동작하지만 초기화만
-실패한다.
+초기화 기능은 X11의 MORAI `Simulator` 창을 잠시 `Manual-Keyboard`로 바꾼 뒤
+`i`를 누르고 다시 `AV-ExternalCtrl`로 복귀시키는 방식이다. 이 과정에서 외부
+제어 UDP는 3.5초 동안 중지된다. `xdotool`이 없거나 Wayland 세션이면 차량 조작
+노드는 계속 동작하지만 초기화만 실패한다.
 
 ## 주요 토픽
 
@@ -124,7 +139,9 @@ xdotool search --onlyvisible --name Simulator
 | `listen_port` | `9094` | MORAI 상태 수신 포트 |
 | `command_timeout` | `0.25` | 조이스틱 연결 끊김 판단 |
 | `safe_brake` | `0.5` | 연결 끊김 시 브레이크 |
+| `reset_pause_duration` | `3.5` | 초기화 중 제어 UDP 정지 시간 |
 | `window_name` / `reset_key` | `Simulator` / `i` | 초기화 대상 창과 키 |
+| `control_toggle_key` | `q` | MORAI 제어 모드 전환 키 |
 
 ## 코드 책임
 

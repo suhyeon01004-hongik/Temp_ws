@@ -36,6 +36,11 @@ morai_sim_reset_node:
   reset_topic: /vehicle/reset_request
   window_name: Simulator
   reset_key: i
+  control_toggle_key: q
+  focus_delay: 0.2
+  key_hold: 0.12
+  mode_settle: 0.25
+  reset_settle: 1.5
 
 morai_udp_sender_node:
   command_topic: /vehicle/manual_command
@@ -44,3 +49,5 @@ morai_udp_sender_node:
   send_rate: 50.0
   command_timeout: 0.25
   safe_brake: 0.5
+  reset_topic: /vehicle/reset_request
+  reset_pause_duration: 3.5

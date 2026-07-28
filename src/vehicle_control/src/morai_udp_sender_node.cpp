@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <std_msgs/Empty.h>
 
 #include <cmath>
 #include <cstdint>
@@ -24,6 +25,8 @@ class MoraiUdpSenderNode {
     double send_rate = 50.0;
     double command_timeout = 0.25;
     double safe_brake = 0.5;
+    std::string reset_topic;
+    double reset_pause_duration = 3.5;
     private_node_.param<std::string>(
         "command_topic", command_topic, "/vehicle/manual_command");
     private_node_.param<std::string>(
@@ -32,6 +35,10 @@ class MoraiUdpSenderNode {
     private_node_.param("send_rate", send_rate, 50.0);
     private_node_.param("command_timeout", command_timeout, 0.25);
     private_node_.param("safe_brake", safe_brake, 0.5);
+    private_node_.param<std::string>(
+        "reset_topic", reset_topic, "/vehicle/reset_request");
+    private_node_.param(
+        "reset_pause_duration", reset_pause_duration, 3.5);
 
     if (destination_port < 1 || destination_port > 65535) {
       throw std::invalid_argument("destination_port must be in 1..65535");
@@ -39,13 +46,22 @@ class MoraiUdpSenderNode {
     if (!std::isfinite(send_rate) || send_rate <= 0.0) {
       throw std::invalid_argument("send_rate must be positive");
     }
+    if (!std::isfinite(reset_pause_duration) ||
+        reset_pause_duration < 0.0) {
+      throw std::invalid_argument(
+          "reset_pause_duration must be finite and nonnegative");
+    }
 
+    reset_pause_duration_ = ros::WallDuration(reset_pause_duration);
     watchdog_.reset(new CommandWatchdog(
         command_timeout, static_cast<float>(safe_brake)));
     sender_.reset(new UdpSender(
         destination_ip, static_cast<std::uint16_t>(destination_port)));
     command_subscriber_ =
         node_.subscribe(command_topic, 1, &MoraiUdpSenderNode::onCommand,
+                        this);
+    reset_subscriber_ =
+        node_.subscribe(reset_topic, 1, &MoraiUdpSenderNode::onResetRequest,
                         this);
     send_timer_ = node_.createWallTimer(
         ros::WallDuration(1.0 / send_rate),
@@ -54,6 +70,8 @@ class MoraiUdpSenderNode {
     ROS_INFO("MORAI control UDP: %s -> %s:%d at %.1f Hz",
              command_topic.c_str(), destination_ip.c_str(),
              destination_port, send_rate);
+    ROS_INFO("MORAI reset pause: %s pauses control UDP for %.1f s",
+             reset_topic.c_str(), reset_pause_duration);
   }
 
  private:
@@ -65,8 +83,20 @@ class MoraiUdpSenderNode {
     last_command_time_ = ros::WallTime::now();
   }
 
+  void onResetRequest(const std_msgs::Empty::ConstPtr&) {
+    const ros::WallTime candidate =
+        ros::WallTime::now() + reset_pause_duration_;
+    if (candidate > reset_pause_until_) {
+      reset_pause_until_ = candidate;
+    }
+    ROS_INFO("MORAI control UDP paused for simulator reset");
+  }
+
   void onSendTimer(const ros::WallTimerEvent&) {
     const ros::WallTime now = ros::WallTime::now();
+    if (now < reset_pause_until_) {
+      return;
+    }
     const double age =
         has_command_ ? (now - last_command_time_).toSec() : 0.0;
     const ControlCommand selected =
@@ -88,7 +118,10 @@ class MoraiUdpSenderNode {
   bool has_command_{false};
   ros::WallTime last_command_time_;
   ros::Subscriber command_subscriber_;
+  ros::Subscriber reset_subscriber_;
   ros::WallTimer send_timer_;
+  ros::WallDuration reset_pause_duration_;
+  ros::WallTime reset_pause_until_;
 };
 
 }  // namespace

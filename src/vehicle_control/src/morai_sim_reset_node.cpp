@@ -13,20 +13,38 @@ class MoraiSimResetNode {
  public:
   MoraiSimResetNode() : private_node_("~") {
     std::string reset_topic;
-    std::string window_name;
-    std::string reset_key;
+    MoraiResetOptions options;
     private_node_.param<std::string>(
         "reset_topic", reset_topic, "/vehicle/reset_request");
     private_node_.param<std::string>(
-        "window_name", window_name, "Simulator");
-    private_node_.param<std::string>("reset_key", reset_key, "i");
+        "window_name", options.window_name, options.window_name);
+    private_node_.param<std::string>(
+        "reset_key", options.reset_key, options.reset_key);
+    private_node_.param<std::string>(
+        "control_toggle_key", options.control_toggle_key,
+        options.control_toggle_key);
+    private_node_.param(
+        "focus_delay", options.focus_delay_seconds,
+        options.focus_delay_seconds);
+    private_node_.param(
+        "key_hold", options.key_hold_seconds, options.key_hold_seconds);
+    private_node_.param(
+        "mode_settle", options.mode_settle_seconds,
+        options.mode_settle_seconds);
+    private_node_.param(
+        "reset_settle", options.reset_settle_seconds,
+        options.reset_settle_seconds);
 
-    reset_command_ = buildMoraiResetCommand(window_name, reset_key);
+    reset_command_ = buildMoraiResetCommand(options);
     reset_subscriber_ = node_.subscribe(
         reset_topic, 1, &MoraiSimResetNode::onResetRequest, this);
 
-    ROS_INFO("MORAI reset bridge: %s -> window '%s', key '%s'",
-             reset_topic.c_str(), window_name.c_str(), reset_key.c_str());
+    ROS_INFO(
+        "MORAI reset bridge: %s -> window '%s', keys '%s/%s/%s/%s'",
+        reset_topic.c_str(), options.window_name.c_str(),
+        options.control_toggle_key.c_str(), options.reset_key.c_str(),
+        options.control_toggle_key.c_str(),
+        options.control_toggle_key.c_str());
   }
 
  private:
@@ -47,7 +65,7 @@ class MoraiSimResetNode {
       return;
     }
 
-    ROS_INFO("MORAI simulator reset key sent");
+    ROS_INFO("MORAI simulator reset sequence completed");
   }
 
   ros::NodeHandle node_;

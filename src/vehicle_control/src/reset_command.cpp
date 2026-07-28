@@ -1,7 +1,10 @@
 #include "vehicle_control/reset_command.hpp"
 
 #include <cerrno>
+#include <cmath>
 #include <cstring>
+#include <iomanip>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -12,19 +15,67 @@
 #include <unistd.h>
 
 namespace vehicle_control {
+namespace {
+
+std::string formatSeconds(const double seconds) {
+  std::ostringstream stream;
+  stream << std::fixed << std::setprecision(3) << seconds;
+  return stream.str();
+}
+
+void validateTiming(const double seconds, const char* name) {
+  if (!std::isfinite(seconds) || seconds < 0.0) {
+    throw std::invalid_argument(std::string(name) +
+                                " must be finite and nonnegative");
+  }
+}
+
+void appendHeldKey(std::vector<std::string>* command,
+                   const std::string& key, const std::string& hold_seconds) {
+  command->insert(command->end(),
+                  {"keydown", "--clearmodifiers", key, "sleep", hold_seconds,
+                   "keyup", "--clearmodifiers", key});
+}
+
+}  // namespace
 
 std::vector<std::string> buildMoraiResetCommand(
-    const std::string& window_name, const std::string& reset_key) {
-  if (window_name.empty()) {
+    const MoraiResetOptions& options) {
+  if (options.window_name.empty()) {
     throw std::invalid_argument("MORAI window name must not be empty");
   }
-  if (reset_key.empty()) {
+  if (options.reset_key.empty()) {
     throw std::invalid_argument("MORAI reset key must not be empty");
   }
+  if (options.control_toggle_key.empty()) {
+    throw std::invalid_argument(
+        "MORAI control toggle key must not be empty");
+  }
+  validateTiming(options.focus_delay_seconds, "focus_delay_seconds");
+  validateTiming(options.key_hold_seconds, "key_hold_seconds");
+  validateTiming(options.mode_settle_seconds, "mode_settle_seconds");
+  validateTiming(options.reset_settle_seconds, "reset_settle_seconds");
 
-  return {"xdotool",        "search", "--onlyvisible", "--name", window_name,
-          "windowactivate", "--sync", "key",           "--clearmodifiers",
-          reset_key};
+  const std::string key_hold =
+      formatSeconds(options.key_hold_seconds);
+  const std::string mode_settle =
+      formatSeconds(options.mode_settle_seconds);
+  std::vector<std::string> command{
+      "xdotool",        "search", "--onlyvisible", "--name",
+      options.window_name, "windowactivate", "--sync", "sleep",
+      formatSeconds(options.focus_delay_seconds)};
+
+  // MORAI ignores I while AV-ExternalCtrl is active. Switch to
+  // Manual-Keyboard, reset, then cycle back through Built-In to ExternalCtrl.
+  appendHeldKey(&command, options.control_toggle_key, key_hold);
+  command.insert(command.end(), {"sleep", mode_settle});
+  appendHeldKey(&command, options.reset_key, key_hold);
+  command.insert(command.end(),
+                 {"sleep", formatSeconds(options.reset_settle_seconds)});
+  appendHeldKey(&command, options.control_toggle_key, key_hold);
+  command.insert(command.end(), {"sleep", mode_settle});
+  appendHeldKey(&command, options.control_toggle_key, key_hold);
+  return command;
 }
 
 ProcessResult executeCommand(const std::vector<std::string>& command) {

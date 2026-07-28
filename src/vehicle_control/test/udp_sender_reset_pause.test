@@ -1,0 +1,16 @@
+<launch>
+  <node pkg="vehicle_control" type="morai_udp_sender_node"
+        name="morai_udp_sender_reset_pause_test" output="screen">
+    <param name="command_topic" value="/test/udp_sender/command"/>
+    <param name="destination_ip" value="127.0.0.1"/>
+    <param name="destination_port" value="19093"/>
+    <param name="send_rate" value="100.0"/>
+    <param name="reset_topic" value="/test/udp_sender/reset"/>
+    <param name="reset_pause_duration" value="0.6"/>
+  </node>
+
+  <test test-name="udp_sender_reset_pause"
+        pkg="vehicle_control"
+        type="test_udp_sender_reset_pause.py"
+        time-limit="10"/>
+</launch>

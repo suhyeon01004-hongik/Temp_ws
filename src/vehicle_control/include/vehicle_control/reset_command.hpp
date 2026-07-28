@@ -11,8 +11,18 @@ struct ProcessResult {
   std::string error;
 };
 
+struct MoraiResetOptions {
+  std::string window_name{"Simulator"};
+  std::string reset_key{"i"};
+  std::string control_toggle_key{"q"};
+  double focus_delay_seconds{0.2};
+  double key_hold_seconds{0.12};
+  double mode_settle_seconds{0.25};
+  double reset_settle_seconds{1.5};
+};
+
 std::vector<std::string> buildMoraiResetCommand(
-    const std::string& window_name, const std::string& reset_key);
+    const MoraiResetOptions& options);
 
 ProcessResult executeCommand(const std::vector<std::string>& command);
 

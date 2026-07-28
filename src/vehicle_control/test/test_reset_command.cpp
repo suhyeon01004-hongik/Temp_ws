@@ -9,21 +9,47 @@ namespace vehicle_control {
 namespace {
 
 TEST(ResetCommandTest, BuildsXdotoolCommandWithoutUsingAShell) {
-  const std::vector<std::string> command =
-      buildMoraiResetCommand("Simulator", "i");
+  MoraiResetOptions options;
+  const std::vector<std::string> command = buildMoraiResetCommand(options);
 
   const std::vector<std::string> expected{
-      "xdotool",       "search", "--onlyvisible", "--name", "Simulator",
-      "windowactivate", "--sync", "key",           "--clearmodifiers", "i"};
+      "xdotool",        "search",         "--onlyvisible", "--name",
+      "Simulator",      "windowactivate", "--sync",        "sleep",
+      "0.200",          "keydown",        "--clearmodifiers", "q",
+      "sleep",          "0.120",          "keyup",         "--clearmodifiers",
+      "q",              "sleep",          "0.250",         "keydown",
+      "--clearmodifiers", "i",            "sleep",         "0.120",
+      "keyup",          "--clearmodifiers", "i",           "sleep",
+      "1.500",          "keydown",        "--clearmodifiers", "q",
+      "sleep",          "0.120",          "keyup",         "--clearmodifiers",
+      "q",              "sleep",          "0.250",         "keydown",
+      "--clearmodifiers", "q",            "sleep",         "0.120",
+      "keyup",          "--clearmodifiers", "q"};
   EXPECT_EQ(command, expected);
 }
 
 TEST(ResetCommandTest, RejectsEmptyWindowName) {
-  EXPECT_THROW(buildMoraiResetCommand("", "i"), std::invalid_argument);
+  MoraiResetOptions options;
+  options.window_name = "";
+  EXPECT_THROW(buildMoraiResetCommand(options), std::invalid_argument);
 }
 
 TEST(ResetCommandTest, RejectsEmptyResetKey) {
-  EXPECT_THROW(buildMoraiResetCommand("Simulator", ""), std::invalid_argument);
+  MoraiResetOptions options;
+  options.reset_key = "";
+  EXPECT_THROW(buildMoraiResetCommand(options), std::invalid_argument);
+}
+
+TEST(ResetCommandTest, RejectsEmptyControlToggleKey) {
+  MoraiResetOptions options;
+  options.control_toggle_key = "";
+  EXPECT_THROW(buildMoraiResetCommand(options), std::invalid_argument);
+}
+
+TEST(ResetCommandTest, RejectsNegativeTiming) {
+  MoraiResetOptions options;
+  options.reset_settle_seconds = -0.1;
+  EXPECT_THROW(buildMoraiResetCommand(options), std::invalid_argument);
 }
 
 TEST(ResetCommandTest, ReportsSuccessfulProcessExit) {
