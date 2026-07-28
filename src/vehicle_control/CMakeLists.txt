@@ -37,6 +37,7 @@ add_library(vehicle_control_core
   src/gear_selector.cpp
   src/joy_mapper.cpp
   src/morai_ctrl_packet.cpp
+  src/morai_vehicle_status_packet.cpp
   src/udp_sender.cpp
 )
 target_compile_features(vehicle_control_core PUBLIC cxx_std_14)
@@ -150,6 +151,19 @@ if(CATKIN_ENABLE_TESTING)
   if(TARGET test_udp_sender)
     target_compile_features(test_udp_sender PUBLIC cxx_std_14)
     target_link_libraries(test_udp_sender
+      vehicle_control_core
+      ${catkin_LIBRARIES}
+    )
+  endif()
+
+  catkin_add_gtest(test_morai_vehicle_status_packet
+    test/test_morai_vehicle_status_packet.cpp
+  )
+  if(TARGET test_morai_vehicle_status_packet)
+    target_compile_features(
+      test_morai_vehicle_status_packet PUBLIC cxx_std_14
+    )
+    target_link_libraries(test_morai_vehicle_status_packet
       vehicle_control_core
       ${catkin_LIBRARIES}
     )
