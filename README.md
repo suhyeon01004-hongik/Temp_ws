@@ -40,7 +40,8 @@ flowchart LR
     CLOUD --> VIZ
 
     JOY["CYVOX MX"] -->|/joy| CTRL["vehicle_control"]
-    CTRL -->|Ego Ctrl Cmd UDP| SIM3["MORAI Ego 차량"]
+    CTRL -->|Ego Ctrl Cmd UDP :9093| SIM3["MORAI Ego 차량"]
+    SIM3 -->|Ego Vehicle Status UDP :9094| CTRL
     PATH_TOPIC -. "향후 자율주행 입력" .-> CTRL
     BRINGUP["morai_bringup"] -. "launch 조합" .-> UDP
     BRINGUP -.-> LOC
@@ -149,8 +150,9 @@ roslaunch morai_bringup path_lidar.launch
 
 ### CYVOX 조이스틱으로 차량 조작
 
-MORAI에서 Ego Controller를 `AV-ExternalCtrl`로 선택하고 Cmd Control 수신
-port를 `9093`으로 설정한 뒤 실행한다.
+MORAI에서 Ego Controller를 `AV-ExternalCtrl`로 선택하고 Cmd Control의 Host
+Port를 `9093`, Destination Port를 `9094`로 설정한 뒤 실행한다. 이 패키지는
+MORAI 상태를 직접 받아 기어 변경 속도를 판단하므로 localization과 독립적이다.
 
 ```bash
 roslaunch vehicle_control cyvox_morai.launch
@@ -173,7 +175,9 @@ roslaunch vehicle_control cyvox_morai.launch
 | 제어용 부분경로 | `/local_path` | `nav_msgs/Path` |
 | Path marker | `/visualization/path` | `visualization_msgs/MarkerArray` |
 | 조이스틱 입력 | `/joy` | `sensor_msgs/Joy` |
+| MORAI 차량 상태 | `/vehicle/status` | `vehicle_control/VehicleStatus` |
 | 수동 차량 명령 | `/vehicle/manual_command` | `vehicle_control/VehicleCommand` |
+| MORAI 초기화 요청 | `/vehicle/reset_request` | `std_msgs/Empty` |
 | 센서 상태 | `/diagnostics` | `diagnostic_msgs/DiagnosticArray` |
 
 ## 설정을 바꿀 때

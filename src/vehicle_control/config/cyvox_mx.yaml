@@ -32,6 +32,11 @@ morai_vehicle_status_udp_node:
   status_topic: /vehicle/status
   poll_rate: 200.0
 
+morai_sim_reset_node:
+  reset_topic: /vehicle/reset_request
+  window_name: Simulator
+  reset_key: i
+
 morai_udp_sender_node:
   command_topic: /vehicle/manual_command
   destination_ip: 127.0.0.1

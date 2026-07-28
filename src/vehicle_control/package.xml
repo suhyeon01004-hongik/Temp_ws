@@ -2,7 +2,7 @@
 <package format="2">
   <name>vehicle_control</name>
   <version>0.1.0</version>
-  <description>Joystick teleoperation and MORAI UDP vehicle command transport.</description>
+  <description>Standalone joystick control, status feedback, and reset bridge for MORAI.</description>
 
   <maintainer email="stier@todo.todo">STIER</maintainer>
   <license>MIT</license>
@@ -17,6 +17,7 @@
 
   <exec_depend>joy</exec_depend>
   <exec_depend>message_runtime</exec_depend>
+  <exec_depend>xdotool</exec_depend>
 
   <test_depend>gtest</test_depend>
   <test_depend>rostest</test_depend>

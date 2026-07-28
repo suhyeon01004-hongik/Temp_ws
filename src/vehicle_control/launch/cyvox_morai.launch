@@ -14,5 +14,11 @@
 
     <node pkg="vehicle_control" type="morai_udp_sender_node"
           name="morai_udp_sender_node" output="screen"/>
+
+    <node pkg="vehicle_control" type="morai_vehicle_status_udp_node"
+          name="morai_vehicle_status_udp_node" output="screen"/>
+
+    <node pkg="vehicle_control" type="morai_sim_reset_node"
+          name="morai_sim_reset_node" output="screen"/>
   </group>
 </launch>
