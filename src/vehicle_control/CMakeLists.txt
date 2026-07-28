@@ -133,6 +133,7 @@ if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
 
   add_rostest(test/cyvox_mapping.test)
+  add_rostest(test/standalone_gear_fallback.test)
   add_rostest(test/udp_sender_reset_pause.test)
 
   catkin_add_gtest(test_joy_mapper

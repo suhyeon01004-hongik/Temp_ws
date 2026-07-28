@@ -18,6 +18,9 @@ joystick_teleop_node:
   status_topic: /vehicle/status
   status_timeout: 0.5
   maximum_gear_change_speed_mps: 0.5
+  allow_brake_interlock_without_status: true
+  minimum_brake_for_gear_change: 0.5
+  maximum_accel_for_gear_change: 0.05
   initial_gear: 4
   drive_button: 0
   neutral_button: 1

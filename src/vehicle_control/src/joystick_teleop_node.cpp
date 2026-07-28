@@ -81,6 +81,27 @@ class JoystickTeleopNode {
     if (!std::isfinite(status_timeout_) || status_timeout_ <= 0.0) {
       throw std::invalid_argument("status_timeout must be positive");
     }
+    private_node_.param(
+        "allow_brake_interlock_without_status",
+        allow_brake_interlock_without_status_, true);
+    private_node_.param(
+        "minimum_brake_for_gear_change",
+        minimum_brake_for_gear_change_, 0.5);
+    private_node_.param(
+        "maximum_accel_for_gear_change",
+        maximum_accel_for_gear_change_, 0.05);
+    if (!std::isfinite(minimum_brake_for_gear_change_) ||
+        minimum_brake_for_gear_change_ < 0.0 ||
+        minimum_brake_for_gear_change_ > 1.0) {
+      throw std::invalid_argument(
+          "minimum_brake_for_gear_change must be in 0..1");
+    }
+    if (!std::isfinite(maximum_accel_for_gear_change_) ||
+        maximum_accel_for_gear_change_ < 0.0 ||
+        maximum_accel_for_gear_change_ > 1.0) {
+      throw std::invalid_argument(
+          "maximum_accel_for_gear_change must be in 0..1");
+    }
     int reset_button = 8;
     private_node_.param("reset_button", reset_button, 8);
     gear_selector_.reset(
@@ -128,18 +149,35 @@ class JoystickTeleopNode {
     const ros::WallTime now = ros::WallTime::now();
     const double status_age =
         has_valid_status_ ? (now - last_status_time_).toSec() : 0.0;
-    const bool speed_valid =
+    const bool status_is_fresh =
         has_valid_status_ && status_age >= 0.0 &&
         status_age <= status_timeout_;
+    const bool brake_interlock_is_satisfied =
+        allow_brake_interlock_without_status_ && !status_is_fresh &&
+        command.brake >= minimum_brake_for_gear_change_ &&
+        command.accel <= maximum_accel_for_gear_change_;
+    const bool speed_valid =
+        status_is_fresh || brake_interlock_is_satisfied;
+    const double gear_change_speed =
+        status_is_fresh ? speed_mps_ : 0.0;
     const GearSelectionResult gear_result =
-        gear_selector_->update(joy->buttons, speed_valid, speed_mps_);
+        gear_selector_->update(
+            joy->buttons, speed_valid, gear_change_speed);
     switch (gear_result.status) {
       case GearSelectionStatus::kChanged:
-        ROS_INFO("CYVOX gear selected: %s", gearName(gear_result.gear));
+        if (brake_interlock_is_satisfied) {
+          ROS_INFO(
+              "CYVOX gear selected with brake interlock: %s",
+              gearName(gear_result.gear));
+        } else {
+          ROS_INFO("CYVOX gear selected: %s", gearName(gear_result.gear));
+        }
         break;
       case GearSelectionStatus::kSpeedUnavailable:
         ROS_WARN_THROTTLE(
-            1.0, "gear change rejected: MORAI vehicle speed is unavailable");
+            1.0,
+            "gear change rejected: MORAI vehicle speed is unavailable; "
+            "release RT and hold LT to change gear");
         break;
       case GearSelectionStatus::kTooFast:
         ROS_WARN_THROTTLE(
@@ -173,6 +211,9 @@ class JoystickTeleopNode {
   std::unique_ptr<GearSelector> gear_selector_;
   std::unique_ptr<ButtonEdge> reset_button_edge_;
   double status_timeout_{0.5};
+  bool allow_brake_interlock_without_status_{true};
+  double minimum_brake_for_gear_change_{0.5};
+  double maximum_accel_for_gear_change_{0.05};
   double speed_mps_{0.0};
   bool has_valid_status_{false};
   ros::WallTime last_status_time_;

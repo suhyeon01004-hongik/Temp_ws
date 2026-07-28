@@ -83,9 +83,10 @@ roslaunch vehicle_control cyvox_morai.launch
 | Y | P(주차) |
 | Home/Guide | MORAI 차량 초기 위치로 재설정 |
 
-기어는 MORAI 속도가 `0.5 m/s` 이하일 때만 바뀐다. 상태 UDP가 없거나 0.5초
-이상 끊기면 안전을 위해 변경을 거부한다. 주행 중 눌렀던 버튼은 정차 후 다시
-눌러야 한다.
+MORAI 속도 상태가 들어오면 기어는 `0.5 m/s` 이하일 때만 바뀐다. 상태 UDP가
+없거나 0.5초 이상 끊긴 독립 실행 상태에서는 RT를 완전히 놓고 LT 브레이크를
+절반 이상 누른 상태에서만 기어를 바꿀 수 있다. 주행 중 거부된 버튼은 조건을
+만족한 뒤 다시 눌러야 한다.
 
 조이스틱 명령이 0.25초 이상 끊기면 가속 0, 조향 0, 브레이크 0.5를 전송하며
 마지막 기어는 유지한다.
@@ -135,6 +136,9 @@ xdotool search --onlyvisible --name Simulator
 | `reset_button` | `8` | 초기화(Home/Guide) |
 | `maximum_gear_change_speed_mps` | `0.5` | 기어 변경 허용 속도 |
 | `status_timeout` | `0.5` | MORAI 상태 유효 시간 |
+| `allow_brake_interlock_without_status` | `true` | 상태가 없을 때 브레이크 조건 사용 |
+| `minimum_brake_for_gear_change` | `0.5` | 독립 실행 시 최소 브레이크 |
+| `maximum_accel_for_gear_change` | `0.05` | 독립 실행 시 최대 가속 입력 |
 | `destination_port` | `9093` | MORAI 명령 수신 포트 |
 | `listen_port` | `9094` | MORAI 상태 수신 포트 |
 | `command_timeout` | `0.25` | 조이스틱 연결 끊김 판단 |
