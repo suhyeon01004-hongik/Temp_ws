@@ -1,6 +1,6 @@
-#include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Joy.h>
+#include <std_msgs/Empty.h>
 
 #include <cmath>
 #include <cstdint>
@@ -9,6 +9,8 @@
 #include <string>
 
 #include "vehicle_control/VehicleCommand.h"
+#include "vehicle_control/VehicleStatus.h"
+#include "vehicle_control/button_edge.hpp"
 #include "vehicle_control/control_command.hpp"
 #include "vehicle_control/gear_selector.hpp"
 #include "vehicle_control/joy_mapper.hpp"
@@ -66,39 +68,55 @@ class JoystickTeleopNode {
         mapper_(new JoyMapper(loadMappingConfig(&private_node_))) {
     std::string joy_topic;
     std::string command_topic;
-    std::string odometry_topic;
+    std::string status_topic;
+    std::string reset_topic;
     private_node_.param<std::string>("joy_topic", joy_topic, "/joy");
     private_node_.param<std::string>(
         "command_topic", command_topic, "/vehicle/manual_command");
     private_node_.param<std::string>(
-        "odometry_topic", odometry_topic, "/localization/odometry");
-    private_node_.param("odometry_timeout", odometry_timeout_, 0.5);
-    if (!std::isfinite(odometry_timeout_) || odometry_timeout_ <= 0.0) {
-      throw std::invalid_argument("odometry_timeout must be positive");
+        "status_topic", status_topic, "/vehicle/status");
+    private_node_.param<std::string>(
+        "reset_topic", reset_topic, "/vehicle/reset_request");
+    private_node_.param("status_timeout", status_timeout_, 0.5);
+    if (!std::isfinite(status_timeout_) || status_timeout_ <= 0.0) {
+      throw std::invalid_argument("status_timeout must be positive");
     }
+    int reset_button = 8;
+    private_node_.param("reset_button", reset_button, 8);
     gear_selector_.reset(
         new GearSelector(loadGearSelectorConfig(&private_node_)));
+    reset_button_edge_.reset(new ButtonEdge(reset_button));
 
     command_publisher_ =
         node_.advertise<vehicle_control::VehicleCommand>(command_topic, 1);
+    reset_publisher_ = node_.advertise<std_msgs::Empty>(reset_topic, 1);
     joy_subscriber_ =
         node_.subscribe(joy_topic, 1, &JoystickTeleopNode::onJoy, this);
-    odometry_subscriber_ = node_.subscribe(
-        odometry_topic, 1, &JoystickTeleopNode::onOdometry, this);
-    ROS_INFO("CYVOX teleop: %s + %s -> %s", joy_topic.c_str(),
-             odometry_topic.c_str(), command_topic.c_str());
+    status_subscriber_ = node_.subscribe(
+        status_topic, 10, &JoystickTeleopNode::onStatus, this);
+    ROS_INFO("CYVOX teleop: %s + %s -> %s; reset -> %s",
+             joy_topic.c_str(), status_topic.c_str(), command_topic.c_str(),
+             reset_topic.c_str());
   }
 
  private:
-  void onOdometry(const nav_msgs::Odometry::ConstPtr& odometry) {
-    const double velocity_x = odometry->twist.twist.linear.x;
-    const double velocity_y = odometry->twist.twist.linear.y;
-    speed_mps_ = std::hypot(velocity_x, velocity_y);
-    has_valid_odometry_ = std::isfinite(speed_mps_);
-    last_odometry_time_ = ros::WallTime::now();
+  void onStatus(const vehicle_control::VehicleStatus::ConstPtr& status) {
+    speed_mps_ = static_cast<double>(status->signed_speed_kph) / 3.6;
+    has_valid_status_ = std::isfinite(speed_mps_);
+    last_status_time_ = ros::WallTime::now();
   }
 
   void onJoy(const sensor_msgs::Joy::ConstPtr& joy) {
+    const ButtonEdgeResult reset_result =
+        reset_button_edge_->update(joy->buttons);
+    if (reset_result == ButtonEdgeResult::kRisingEdge) {
+      reset_publisher_.publish(std_msgs::Empty{});
+      ROS_INFO("CYVOX Home button requested MORAI reset");
+    } else if (reset_result == ButtonEdgeResult::kInvalidButtonMessage) {
+      ROS_ERROR_THROTTLE(
+          1.0, "cannot read reset button: Joy button array is too short");
+    }
+
     ControlCommand command;
     std::string error;
     if (!mapper_->map(joy->axes, &command, &error)) {
@@ -108,11 +126,11 @@ class JoystickTeleopNode {
     }
 
     const ros::WallTime now = ros::WallTime::now();
-    const double odometry_age =
-        has_valid_odometry_ ? (now - last_odometry_time_).toSec() : 0.0;
+    const double status_age =
+        has_valid_status_ ? (now - last_status_time_).toSec() : 0.0;
     const bool speed_valid =
-        has_valid_odometry_ && odometry_age >= 0.0 &&
-        odometry_age <= odometry_timeout_;
+        has_valid_status_ && status_age >= 0.0 &&
+        status_age <= status_timeout_;
     const GearSelectionResult gear_result =
         gear_selector_->update(joy->buttons, speed_valid, speed_mps_);
     switch (gear_result.status) {
@@ -121,7 +139,7 @@ class JoystickTeleopNode {
         break;
       case GearSelectionStatus::kSpeedUnavailable:
         ROS_WARN_THROTTLE(
-            1.0, "gear change rejected: odometry speed is unavailable");
+            1.0, "gear change rejected: MORAI vehicle speed is unavailable");
         break;
       case GearSelectionStatus::kTooFast:
         ROS_WARN_THROTTLE(
@@ -153,13 +171,15 @@ class JoystickTeleopNode {
   ros::NodeHandle private_node_;
   std::unique_ptr<JoyMapper> mapper_;
   std::unique_ptr<GearSelector> gear_selector_;
-  double odometry_timeout_{0.5};
+  std::unique_ptr<ButtonEdge> reset_button_edge_;
+  double status_timeout_{0.5};
   double speed_mps_{0.0};
-  bool has_valid_odometry_{false};
-  ros::WallTime last_odometry_time_;
+  bool has_valid_status_{false};
+  ros::WallTime last_status_time_;
   ros::Publisher command_publisher_;
+  ros::Publisher reset_publisher_;
   ros::Subscriber joy_subscriber_;
-  ros::Subscriber odometry_subscriber_;
+  ros::Subscriber status_subscriber_;
 };
 
 }  // namespace

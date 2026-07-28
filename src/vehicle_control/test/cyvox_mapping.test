@@ -9,8 +9,10 @@
           output="screen">
       <param name="joy_topic" value="/test/cyvox/joy"/>
       <param name="command_topic" value="/test/cyvox/command"/>
-      <param name="odometry_topic" value="/test/cyvox/odometry"/>
-      <param name="odometry_timeout" value="0.15"/>
+      <param name="status_topic" value="/test/cyvox/status"/>
+      <param name="status_timeout" value="0.5"/>
+      <param name="reset_topic" value="/test/cyvox/reset"/>
+      <param name="reset_button" value="8"/>
       <param name="maximum_gear_change_speed_mps" value="0.5"/>
       <param name="initial_gear" value="4"/>
       <param name="drive_button" value="0"/>

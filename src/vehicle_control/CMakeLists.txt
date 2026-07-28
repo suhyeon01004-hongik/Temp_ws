@@ -5,7 +5,6 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 
 find_package(catkin REQUIRED COMPONENTS
   message_generation
-  nav_msgs
   roscpp
   sensor_msgs
   std_msgs
@@ -25,7 +24,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES vehicle_control_core
-  CATKIN_DEPENDS message_runtime nav_msgs roscpp sensor_msgs std_msgs
+  CATKIN_DEPENDS message_runtime roscpp sensor_msgs std_msgs
 )
 
 include_directories(
@@ -34,6 +33,7 @@ include_directories(
 )
 
 add_library(vehicle_control_core
+  src/button_edge.cpp
   src/command_watchdog.cpp
   src/gear_selector.cpp
   src/joy_mapper.cpp
@@ -193,6 +193,17 @@ if(CATKIN_ENABLE_TESTING)
   if(TARGET test_udp_receiver)
     target_compile_features(test_udp_receiver PUBLIC cxx_std_14)
     target_link_libraries(test_udp_receiver
+      vehicle_control_core
+      ${catkin_LIBRARIES}
+    )
+  endif()
+
+  catkin_add_gtest(test_button_edge
+    test/test_button_edge.cpp
+  )
+  if(TARGET test_button_edge)
+    target_compile_features(test_button_edge PUBLIC cxx_std_14)
+    target_link_libraries(test_button_edge
       vehicle_control_core
       ${catkin_LIBRARIES}
     )

@@ -6,15 +6,16 @@ import unittest
 
 import rospy
 import rostest
-from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Joy
-from vehicle_control.msg import VehicleCommand
+from std_msgs.msg import Empty
+from vehicle_control.msg import VehicleCommand, VehicleStatus
 
 
 class CyvoxMappingTest(unittest.TestCase):
     def setUp(self):
         self._condition = threading.Condition()
         self._commands = []
+        self._reset_count = 0
         self._command_subscriber = rospy.Subscriber(
             "/test/cyvox/command",
             VehicleCommand,
@@ -26,9 +27,15 @@ class CyvoxMappingTest(unittest.TestCase):
             Joy,
             queue_size=10,
         )
-        self._odometry_publisher = rospy.Publisher(
-            "/test/cyvox/odometry",
-            Odometry,
+        self._status_publisher = rospy.Publisher(
+            "/test/cyvox/status",
+            VehicleStatus,
+            queue_size=10,
+        )
+        self._reset_subscriber = rospy.Subscriber(
+            "/test/cyvox/reset",
+            Empty,
+            self._on_reset,
             queue_size=10,
         )
 
@@ -36,27 +43,34 @@ class CyvoxMappingTest(unittest.TestCase):
         while (
             self._joy_publisher.get_num_connections() == 0
             or self._command_subscriber.get_num_connections() == 0
+            or self._status_publisher.get_num_connections() == 0
         ):
             if time.monotonic() >= deadline:
-                self.fail("joystick teleop topic connections were not ready")
+                self.fail("standalone teleop topic connections were not ready")
             rospy.sleep(0.01)
 
     def tearDown(self):
         self._command_subscriber.unregister()
         self._joy_publisher.unregister()
-        self._odometry_publisher.unregister()
+        self._status_publisher.unregister()
+        self._reset_subscriber.unregister()
 
     def _on_command(self, command):
         with self._condition:
             self._commands.append(command)
             self._condition.notify_all()
 
+    def _on_reset(self, _message):
+        with self._condition:
+            self._reset_count += 1
+            self._condition.notify_all()
+
     def _publish_speed(self, speed_mps):
-        odometry = Odometry()
-        odometry.header.stamp = rospy.Time.now()
-        odometry.twist.twist.linear.x = speed_mps
+        status = VehicleStatus()
+        status.header.stamp = rospy.Time.now()
+        status.signed_speed_kph = speed_mps * 3.6
         for _ in range(5):
-            self._odometry_publisher.publish(odometry)
+            self._status_publisher.publish(status)
             rospy.sleep(0.02)
 
     def _map_input(self, brake_axis, accel_axis, buttons=None):
@@ -129,16 +143,37 @@ class CyvoxMappingTest(unittest.TestCase):
 
         self.assertEqual(command.gear, VehicleCommand.GEAR_DRIVE)
 
-    def test_stale_odometry_rejects_gear_change(self):
+    def test_stale_vehicle_status_rejects_gear_change(self):
         self._select_gear(button_index=0, speed_mps=0.0)
         self._map_input(1.0, 1.0)
-        rospy.sleep(0.2)
+        rospy.sleep(0.6)
         buttons = [0] * 11
         buttons[2] = 1
 
         command = self._map_input(1.0, 1.0, buttons)
 
         self.assertEqual(command.gear, VehicleCommand.GEAR_DRIVE)
+
+    def test_home_button_emits_one_reset_per_press(self):
+        self._map_input(1.0, 1.0)
+        buttons = [0] * 11
+        buttons[8] = 1
+
+        self._map_input(1.0, 1.0, buttons)
+        self._map_input(1.0, 1.0, buttons)
+        deadline = time.monotonic() + 1.0
+        with self._condition:
+            while self._reset_count < 1 and time.monotonic() < deadline:
+                self._condition.wait(timeout=0.05)
+            self.assertEqual(self._reset_count, 1)
+
+        self._map_input(1.0, 1.0)
+        self._map_input(1.0, 1.0, buttons)
+        deadline = time.monotonic() + 1.0
+        with self._condition:
+            while self._reset_count < 2 and time.monotonic() < deadline:
+                self._condition.wait(timeout=0.05)
+            self.assertEqual(self._reset_count, 2)
 
 
 if __name__ == "__main__":
