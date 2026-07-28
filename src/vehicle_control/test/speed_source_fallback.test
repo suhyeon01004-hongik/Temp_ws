@@ -1,0 +1,22 @@
+<launch>
+  <group ns="speed_source_fallback_test">
+    <rosparam command="load"
+              file="$(find vehicle_control)/config/cyvox_mx.yaml"/>
+
+    <node pkg="vehicle_control"
+          type="joystick_teleop_node"
+          name="joystick_teleop_node"
+          output="screen">
+      <param name="joy_topic" value="/test/speed_fallback/joy"/>
+      <param name="command_topic" value="/test/speed_fallback/command"/>
+      <param name="status_topic" value="/test/speed_fallback/no_status"/>
+      <param name="odometry_topic" value="/test/speed_fallback/odometry"/>
+      <param name="odometry_timeout" value="0.5"/>
+    </node>
+  </group>
+
+  <test test-name="speed_source_fallback"
+        pkg="vehicle_control"
+        type="test_speed_source_fallback.py"
+        time-limit="10"/>
+</launch>

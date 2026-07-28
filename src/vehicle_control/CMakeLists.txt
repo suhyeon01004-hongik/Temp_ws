@@ -5,6 +5,7 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 
 find_package(catkin REQUIRED COMPONENTS
   message_generation
+  nav_msgs
   roscpp
   sensor_msgs
   std_msgs
@@ -24,7 +25,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES vehicle_control_core
-  CATKIN_DEPENDS message_runtime roscpp sensor_msgs std_msgs
+  CATKIN_DEPENDS message_runtime nav_msgs roscpp sensor_msgs std_msgs
 )
 
 include_directories(
@@ -133,7 +134,7 @@ if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
 
   add_rostest(test/cyvox_mapping.test)
-  add_rostest(test/standalone_gear_fallback.test)
+  add_rostest(test/speed_source_fallback.test)
   add_rostest(test/udp_sender_reset_pause.test)
 
   catkin_add_gtest(test_joy_mapper

@@ -1,3 +1,4 @@
+#include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Joy.h>
 #include <std_msgs/Empty.h>
@@ -69,6 +70,7 @@ class JoystickTeleopNode {
     std::string joy_topic;
     std::string command_topic;
     std::string status_topic;
+    std::string odometry_topic;
     std::string reset_topic;
     private_node_.param<std::string>("joy_topic", joy_topic, "/joy");
     private_node_.param<std::string>(
@@ -76,31 +78,16 @@ class JoystickTeleopNode {
     private_node_.param<std::string>(
         "status_topic", status_topic, "/vehicle/status");
     private_node_.param<std::string>(
+        "odometry_topic", odometry_topic, "/localization/odometry");
+    private_node_.param<std::string>(
         "reset_topic", reset_topic, "/vehicle/reset_request");
     private_node_.param("status_timeout", status_timeout_, 0.5);
     if (!std::isfinite(status_timeout_) || status_timeout_ <= 0.0) {
       throw std::invalid_argument("status_timeout must be positive");
     }
-    private_node_.param(
-        "allow_brake_interlock_without_status",
-        allow_brake_interlock_without_status_, true);
-    private_node_.param(
-        "minimum_brake_for_gear_change",
-        minimum_brake_for_gear_change_, 0.5);
-    private_node_.param(
-        "maximum_accel_for_gear_change",
-        maximum_accel_for_gear_change_, 0.05);
-    if (!std::isfinite(minimum_brake_for_gear_change_) ||
-        minimum_brake_for_gear_change_ < 0.0 ||
-        minimum_brake_for_gear_change_ > 1.0) {
-      throw std::invalid_argument(
-          "minimum_brake_for_gear_change must be in 0..1");
-    }
-    if (!std::isfinite(maximum_accel_for_gear_change_) ||
-        maximum_accel_for_gear_change_ < 0.0 ||
-        maximum_accel_for_gear_change_ > 1.0) {
-      throw std::invalid_argument(
-          "maximum_accel_for_gear_change must be in 0..1");
+    private_node_.param("odometry_timeout", odometry_timeout_, 0.5);
+    if (!std::isfinite(odometry_timeout_) || odometry_timeout_ <= 0.0) {
+      throw std::invalid_argument("odometry_timeout must be positive");
     }
     int reset_button = 8;
     private_node_.param("reset_button", reset_button, 8);
@@ -115,9 +102,12 @@ class JoystickTeleopNode {
         node_.subscribe(joy_topic, 1, &JoystickTeleopNode::onJoy, this);
     status_subscriber_ = node_.subscribe(
         status_topic, 10, &JoystickTeleopNode::onStatus, this);
-    ROS_INFO("CYVOX teleop: %s + %s -> %s; reset -> %s",
-             joy_topic.c_str(), status_topic.c_str(), command_topic.c_str(),
-             reset_topic.c_str());
+    odometry_subscriber_ = node_.subscribe(
+        odometry_topic, 10, &JoystickTeleopNode::onOdometry, this);
+    ROS_INFO(
+        "CYVOX teleop: %s + speed(%s, fallback %s) -> %s; reset -> %s",
+        joy_topic.c_str(), status_topic.c_str(), odometry_topic.c_str(),
+        command_topic.c_str(), reset_topic.c_str());
   }
 
  private:
@@ -125,6 +115,14 @@ class JoystickTeleopNode {
     speed_mps_ = static_cast<double>(status->signed_speed_kph) / 3.6;
     has_valid_status_ = std::isfinite(speed_mps_);
     last_status_time_ = ros::WallTime::now();
+  }
+
+  void onOdometry(const nav_msgs::Odometry::ConstPtr& odometry) {
+    const double velocity_x = odometry->twist.twist.linear.x;
+    const double velocity_y = odometry->twist.twist.linear.y;
+    odometry_speed_mps_ = std::hypot(velocity_x, velocity_y);
+    has_valid_odometry_ = std::isfinite(odometry_speed_mps_);
+    last_odometry_time_ = ros::WallTime::now();
   }
 
   void onJoy(const sensor_msgs::Joy::ConstPtr& joy) {
@@ -152,23 +150,22 @@ class JoystickTeleopNode {
     const bool status_is_fresh =
         has_valid_status_ && status_age >= 0.0 &&
         status_age <= status_timeout_;
-    const bool brake_interlock_is_satisfied =
-        allow_brake_interlock_without_status_ && !status_is_fresh &&
-        command.brake >= minimum_brake_for_gear_change_ &&
-        command.accel <= maximum_accel_for_gear_change_;
-    const bool speed_valid =
-        status_is_fresh || brake_interlock_is_satisfied;
+    const double odometry_age =
+        has_valid_odometry_ ? (now - last_odometry_time_).toSec() : 0.0;
+    const bool odometry_is_fresh =
+        has_valid_odometry_ && odometry_age >= 0.0 &&
+        odometry_age <= odometry_timeout_;
+    const bool speed_valid = status_is_fresh || odometry_is_fresh;
     const double gear_change_speed =
-        status_is_fresh ? speed_mps_ : 0.0;
+        status_is_fresh ? speed_mps_ : odometry_speed_mps_;
     const GearSelectionResult gear_result =
         gear_selector_->update(
             joy->buttons, speed_valid, gear_change_speed);
     switch (gear_result.status) {
       case GearSelectionStatus::kChanged:
-        if (brake_interlock_is_satisfied) {
-          ROS_INFO(
-              "CYVOX gear selected with brake interlock: %s",
-              gearName(gear_result.gear));
+        if (!status_is_fresh && odometry_is_fresh) {
+          ROS_INFO("CYVOX gear selected using odometry speed: %s",
+                   gearName(gear_result.gear));
         } else {
           ROS_INFO("CYVOX gear selected: %s", gearName(gear_result.gear));
         }
@@ -176,13 +173,13 @@ class JoystickTeleopNode {
       case GearSelectionStatus::kSpeedUnavailable:
         ROS_WARN_THROTTLE(
             1.0,
-            "gear change rejected: MORAI vehicle speed is unavailable; "
-            "release RT and hold LT to change gear");
+            "gear change rejected: MORAI status and localization odometry "
+            "speeds are unavailable");
         break;
       case GearSelectionStatus::kTooFast:
         ROS_WARN_THROTTLE(
             1.0, "gear change rejected: vehicle speed is %.3f m/s",
-            speed_mps_);
+            gear_change_speed);
         break;
       case GearSelectionStatus::kAmbiguousButtons:
         ROS_WARN_THROTTLE(
@@ -211,16 +208,18 @@ class JoystickTeleopNode {
   std::unique_ptr<GearSelector> gear_selector_;
   std::unique_ptr<ButtonEdge> reset_button_edge_;
   double status_timeout_{0.5};
-  bool allow_brake_interlock_without_status_{true};
-  double minimum_brake_for_gear_change_{0.5};
-  double maximum_accel_for_gear_change_{0.05};
+  double odometry_timeout_{0.5};
   double speed_mps_{0.0};
+  double odometry_speed_mps_{0.0};
   bool has_valid_status_{false};
+  bool has_valid_odometry_{false};
   ros::WallTime last_status_time_;
+  ros::WallTime last_odometry_time_;
   ros::Publisher command_publisher_;
   ros::Publisher reset_publisher_;
   ros::Subscriber joy_subscriber_;
   ros::Subscriber status_subscriber_;
+  ros::Subscriber odometry_subscriber_;
 };
 
 }  // namespace
