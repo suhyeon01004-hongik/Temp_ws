@@ -3,6 +3,7 @@
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
+import re
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
@@ -23,11 +24,25 @@ class BringupLaunchCompositionTest(unittest.TestCase):
         }
 
     @staticmethod
+    def direct_include_files(root):
+        return [
+            include.attrib["file"]
+            for include in root.findall("./include")
+        ]
+
+    @staticmethod
     def argument_defaults(root):
         return {
             argument.attrib["name"]: argument.attrib.get("default")
             for argument in root.findall("./arg")
         }
+
+    @staticmethod
+    def root_argument_pairs(root):
+        return [
+            (argument.attrib["name"], argument.attrib.get("default"))
+            for argument in root.findall("./arg")
+        ]
 
     @staticmethod
     def include_by_file(root, file_name):
@@ -39,6 +54,43 @@ class BringupLaunchCompositionTest(unittest.TestCase):
             argument.attrib["name"]: argument.attrib["value"]
             for argument in include.findall("./arg")
         }
+
+    @staticmethod
+    def include_argument_pairs(include):
+        return [
+            (argument.attrib["name"], argument.attrib["value"])
+            for argument in include.findall("./arg")
+        ]
+
+    def assert_exact_direct_include_files(self, root, expected):
+        self.assertEqual(self.direct_include_files(root), expected)
+
+    @staticmethod
+    def workspace_launch_path(include_file):
+        match = re.fullmatch(r"\$\(find ([^)]+)\)/launch/(.+)", include_file)
+        if match is None:
+            return None
+
+        path = PACKAGE_ROOT.parent / match.group(1) / "launch" / match.group(2)
+        return path if path.exists() else None
+
+    def resolved_launch_roots(self, root):
+        roots = []
+        visited = set()
+
+        def visit(current_root):
+            for include in current_root.findall(".//include"):
+                path = self.workspace_launch_path(include.attrib["file"])
+                if path is None or path in visited:
+                    continue
+                visited.add(path)
+                child_root = ET.parse(str(path)).getroot()
+                roots.append(child_root)
+                visit(child_root)
+
+        roots.append(root)
+        visit(root)
+        return roots
 
     def test_sensor_bringup_has_no_localization_or_path_contract(self):
         root = self.load_launch("molit_2026_sensors.launch")
@@ -156,85 +208,131 @@ class BringupLaunchCompositionTest(unittest.TestCase):
 
     def test_autonomous_bringup_composes_tracking_without_manual_control(self):
         root = self.load_launch("molit_2026_autonomous.launch")
-        expected = {
+        expected_includes = [
             "$(find morai_bringup)/launch/molit_2026_stack.launch",
             "$(find morai_path_tracking)/launch/pure_pursuit.launch",
             "$(find morai_udp_bridge)/launch/control_sender.launch",
-        }
-        self.assertEqual(self.include_files(root), expected)
-        self.assertNotIn(
-            "vehicle_control", ET.tostring(root, encoding="unicode")
+        ]
+        self.assertEqual(
+            self.root_argument_pairs(root),
+            [
+                ("publish_description", "true"),
+                ("use_lidar", "true"),
+                (
+                    "bridge_config",
+                    "$(find morai_udp_bridge)/config/molit_2026.yaml",
+                ),
+                (
+                    "vehicle_config",
+                    "$(find ioniq5_description)/config/vehicle_specs.yaml",
+                ),
+                (
+                    "sensor_mount_config",
+                    "$(find ioniq5_description)/config/"
+                    "molit_2026_sensor_mounts.yaml",
+                ),
+                (
+                    "localization_config",
+                    "$(find morai_localization)/config/molit_2026_kcity.yaml",
+                ),
+                (
+                    "route_path_config",
+                    "$(find morai_path_manager)/config/"
+                    "molit_2026_kcity_route_path.yaml",
+                ),
+                (
+                    "global_path_file",
+                    "$(find morai_path_manager)/map/R-KR_PG_K-City_2025/"
+                    "2026_molit_comp_global_path.txt",
+                ),
+                ("lidar_device_ip", ""),
+                ("lidar_port", "2368"),
+                ("lidar_hz", "15.0"),
+                ("lidar_frame", "lidar_link"),
+                ("lidar_cut_angle", "0.0"),
+                ("lidar_fixed_frame", ""),
+                ("lidar_target_frame", ""),
+                (
+                    "controller_config",
+                    "$(find morai_path_tracking)/config/"
+                    "molit_2026_pure_pursuit.yaml",
+                ),
+                (
+                    "control_sender_config",
+                    "$(find morai_udp_bridge)/config/molit_2026_control.yaml",
+                ),
+            ],
         )
 
-        defaults = self.argument_defaults(root)
+        self.assert_exact_direct_include_files(root, expected_includes)
+        direct_includes = root.findall("./include")
         self.assertEqual(
-            defaults["localization_config"],
-            "$(find morai_localization)/config/molit_2026_kcity.yaml",
+            self.include_argument_pairs(direct_includes[0]),
+            [
+                ("publish_description", "$(arg publish_description)"),
+                ("use_lidar", "$(arg use_lidar)"),
+                ("bridge_config", "$(arg bridge_config)"),
+                ("vehicle_config", "$(arg vehicle_config)"),
+                ("sensor_mount_config", "$(arg sensor_mount_config)"),
+                ("localization_config", "$(arg localization_config)"),
+                ("route_path_config", "$(arg route_path_config)"),
+                ("global_path_file", "$(arg global_path_file)"),
+                ("lidar_device_ip", "$(arg lidar_device_ip)"),
+                ("lidar_port", "$(arg lidar_port)"),
+                ("lidar_hz", "$(arg lidar_hz)"),
+                ("lidar_frame", "$(arg lidar_frame)"),
+                ("lidar_cut_angle", "$(arg lidar_cut_angle)"),
+                ("lidar_fixed_frame", "$(arg lidar_fixed_frame)"),
+                ("lidar_target_frame", "$(arg lidar_target_frame)"),
+            ],
         )
         self.assertEqual(
-            defaults["route_path_config"],
-            "$(find morai_path_manager)/config/"
-            "molit_2026_kcity_route_path.yaml",
+            self.include_argument_pairs(direct_includes[1]),
+            [("config", "$(arg controller_config)")],
         )
         self.assertEqual(
-            defaults["global_path_file"],
-            "$(find morai_path_manager)/map/R-KR_PG_K-City_2025/"
-            "2026_molit_comp_global_path.txt",
-        )
-        self.assertEqual(
-            defaults["controller_config"],
-            "$(find morai_path_tracking)/config/"
-            "molit_2026_pure_pursuit.yaml",
-        )
-        self.assertEqual(
-            defaults["control_sender_config"],
-            "$(find morai_udp_bridge)/config/molit_2026_control.yaml",
+            self.include_argument_pairs(direct_includes[2]),
+            [("config", "$(arg control_sender_config)")],
         )
 
-        stack = root.find(
-            "./include[@file='$(find morai_bringup)/launch/"
-            "molit_2026_stack.launch']"
-        )
-        self.assertIsNotNone(stack)
-        self.assertEqual(
-            self.include_arguments(stack),
-            {
-                "publish_description": "$(arg publish_description)",
-                "use_lidar": "$(arg use_lidar)",
-                "bridge_config": "$(arg bridge_config)",
-                "vehicle_config": "$(arg vehicle_config)",
-                "sensor_mount_config": "$(arg sensor_mount_config)",
-                "localization_config": "$(arg localization_config)",
-                "route_path_config": "$(arg route_path_config)",
-                "global_path_file": "$(arg global_path_file)",
-                "lidar_device_ip": "$(arg lidar_device_ip)",
-                "lidar_port": "$(arg lidar_port)",
-                "lidar_hz": "$(arg lidar_hz)",
-                "lidar_frame": "$(arg lidar_frame)",
-                "lidar_cut_angle": "$(arg lidar_cut_angle)",
-                "lidar_fixed_frame": "$(arg lidar_fixed_frame)",
-                "lidar_target_frame": "$(arg lidar_target_frame)",
-            },
-        )
+        for resolved_root in self.resolved_launch_roots(root):
+            for include in resolved_root.findall(".//include"):
+                self.assertNotRegex(
+                    include.attrib["file"].lower(),
+                    r"rviz|vehicle_control|manual",
+                )
+            for node in resolved_root.findall(".//node"):
+                self.assertNotRegex(
+                    " ".join(node.attrib.values()).lower(),
+                    r"rviz|vehicle_control|manual",
+                )
 
-        controller = root.find(
-            "./include[@file='$(find morai_path_tracking)/launch/"
-            "pure_pursuit.launch']"
+    def test_exact_launch_helpers_do_not_hide_duplicate_elements(self):
+        duplicate_include_root = ET.fromstring(
+            "<launch><include file='stack.launch'/><include "
+            "file='stack.launch'/></launch>"
         )
-        self.assertIsNotNone(controller)
-        self.assertEqual(
-            self.include_arguments(controller),
-            {"config": "$(arg controller_config)"},
-        )
+        self.assertEqual(self.include_files(duplicate_include_root), {"stack.launch"})
+        with self.assertRaises(AssertionError):
+            self.assert_exact_direct_include_files(
+                duplicate_include_root,
+                ["stack.launch"],
+            )
 
-        sender = root.find(
-            "./include[@file='$(find morai_udp_bridge)/launch/"
-            "control_sender.launch']"
+        duplicate_argument_include = ET.fromstring(
+            "<include><arg name='config' value='config.yaml'/><arg "
+            "name='config' value='config.yaml'/></include>"
         )
-        self.assertIsNotNone(sender)
         self.assertEqual(
-            self.include_arguments(sender),
-            {"config": "$(arg control_sender_config)"},
+            self.include_arguments(duplicate_argument_include),
+            {"config": "config.yaml"},
+        )
+        self.assertEqual(
+            self.include_argument_pairs(duplicate_argument_include),
+            [
+                ("config", "config.yaml"),
+                ("config", "config.yaml"),
+            ],
         )
 
     def test_legacy_integration_test_launch_is_removed(self):

@@ -74,8 +74,8 @@ map
 | 패키지 | 책임 |
 | --- | --- |
 | [`ioniq5_description`](src/ioniq5_description/README.md) | 차량 제원, 센서 장착값, URDF와 고정 TF |
-| [`morai_udp_bridge`](src/morai_udp_bridge/README.md) | Camera/GPS/IMU UDP 수신과 ROS 메시지 변환 |
-| [`morai_localization`](src/morai_localization/README.md) | GPS 좌표 투영, IMU 정규화, 최종 pose와 TF |
+| [`morai_udp_bridge`](src/morai_udp_bridge/README.md) | Camera/GPS/IMU UDP 수신·ROS 변환과 자율 제어 UDP 송신/watchdog |
+| [`morai_localization`](src/morai_localization/README.md) | GPS 좌표 투영, IMU 정규화, pose·TF와 odometry velocity 추정 |
 | [`morai_path_manager`](src/morai_path_manager/README.md) | 전역경로 로드와 전방 20 pose local path |
 | [`morai_path_tracking`](src/morai_path_tracking/README.md) | odometry velocity와 local path의 Pure Pursuit/PID 자율 제어 |
 | [`morai_visualization`](src/morai_visualization/README.md) | Path/LiDAR RViz profile과 디버그 marker |
@@ -259,8 +259,10 @@ rostopic echo /diagnostics
 
 ## 현재 제한
 
-- GPS/IMU noise를 끈 상태를 기준으로 하며 필터는 아직 적용하지 않았다.
-- noise를 켤 때는 localization fusion을 EKF/UKF 계층으로 교체해야 한다.
+- GPS/IMU noise를 끈 상태를 기준으로 한다. pose는 GPS XY와 IMU yaw를 직접
+  결합하고, odometry velocity는 위치 차분을 차량 좌표계에서 `0.10 s` 1차 LPF로
+  필터링한다.
+- noise를 켤 때는 pose fusion을 EKF/UKF 계층으로 교체해야 한다.
 - CYVOX는 P/R/N/D 수동 선택을 지원하지만 자율 제어기와의 제어권 중재는 아직
   구현하지 않았다.
 - 자율 sender와 수동 `vehicle_control` sender의 제어권 중재는 구현하지

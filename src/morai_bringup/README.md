@@ -206,8 +206,9 @@ Velodyne의 `fixed_frame` 기반 주행 왜곡 보정은 현재 기본 비활성
 - 센서 장착값은 MORAI `0725demo.json`과 description YAML을 함께 바꾼다.
 - 현재 GPS는 `[0.0, 0.0, 1.2]`, 30 Hz, UDP `9301`, noise off가 기준이다.
 - 현재 IMU는 `[1.5, 0.0, 0.5]`, 50 Hz, UDP `9303`, noise off가 기준이다.
-- 현재 localization은 필터 없이 GPS X/Y와 IMU yaw를 직접 결합한다. noise를
-  켤 때는 fusion 구현을 필터 기반으로 교체해야 한다.
+- 현재 localization pose는 GPS X/Y와 IMU yaw를 직접 결합한다. odometry
+  velocity는 위치 차분을 차량 좌표계에서 `0.10 s` 1차 LPF로 필터링한다.
+  noise를 켤 때는 pose fusion 구현을 EKF/UKF 기반으로 교체해야 한다.
 - 자율 경로 추종은 GPS와 IMU sensor noise가 꺼진 상태를 전제로 한다.
 - 기본 목표 속도 `3.0 m/s`와 Pure Pursuit/PID 게인은
   `molit_2026_pure_pursuit.yaml`에서 튜닝한다.
