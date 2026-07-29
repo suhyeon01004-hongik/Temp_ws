@@ -151,15 +151,20 @@ roslaunch morai_bringup path_lidar.launch
 ### CYVOX 조이스틱으로 차량 조작
 
 MORAI에서 Ego Controller를 `AV-ExternalCtrl`로 선택하고 Cmd Control의 Host
-Port를 `9093`, Destination Port를 `9094`로 설정한 뒤 실행한다. 이 패키지는
-MORAI 상태를 직접 받아 기어 변경 속도를 판단하므로 localization과 독립적이다.
+Port를 `9093`, Destination Port를 `9094`로 설정한 뒤 실행한다. 기어 변경 시
+MORAI 차량 상태 속도를 우선 사용하고, 상태가 없으면 localization odometry를
+사용한다. 두 속도 입력이 모두 없어도 브레이크 인터록으로 기어를 변경할 수
+있으므로 localization 없이도 조이스틱 제어가 동작한다.
 
 ```bash
 roslaunch vehicle_control cyvox_morai.launch
 ```
 
 기본 조작은 왼쪽 스틱 좌우 조향, RT 가속, LT 브레이크다. 두 트리거를 놓으면
-자동 브레이크 없이 타력 주행 명령을 보낸다.
+자동 브레이크 없이 타력 주행 명령을 보낸다. A/B/X/Y는 각각 D/N/R/P 기어를
+선택하며, RT를 놓고 LT 브레이크를 50% 이상 밟아야 기어가 바뀐다. Home/Guide
+버튼은 X11의 MORAI `Simulator` 창에 초기화 키를 보내 차량을 시작 위치로
+되돌린다.
 
 ## 핵심 토픽
 
@@ -206,6 +211,7 @@ rostopic echo -n 1 /localization/pose
 rostopic echo -n 1 /global_path
 rostopic echo -n 1 /local_path
 rostopic echo -n 1 /joy
+rostopic echo -n 1 /vehicle/status
 rostopic echo -n 1 /vehicle/manual_command
 rosrun tf tf_echo map base_link
 rostopic echo /diagnostics
@@ -219,14 +225,18 @@ rostopic echo /diagnostics
 - RViz `Global Status: Error`이면 `/localization/pose`와 `map -> base_link`
   TF부터 확인한다.
 - `Address already in use`가 나오면 같은 UDP port의 기존 launch를 종료한다.
+- Home 초기화가 안 되면 `xdotool` 설치 여부, X11 세션 여부와
+  `xdotool search --onlyvisible --name Simulator` 결과를 확인한다.
 
 ## 현재 제한
 
 - GPS/IMU noise를 끈 상태를 기준으로 하며 필터는 아직 적용하지 않았다.
 - noise를 켤 때는 localization fusion을 EKF/UKF 계층으로 교체해야 한다.
-- CYVOX 수동 제어는 기어 `D`만 지원하며 제어권 중재는 아직 구현하지 않았다.
+- CYVOX는 P/R/N/D 수동 선택을 지원하지만 자율 제어기와의 제어권 중재는 아직
+  구현하지 않았다.
 - 전역·지역경로를 사용하는 자율 경로 추종 제어기는 아직 구현하지 않았다.
 - K-City가 아닌 map에서는 UTM offset과 전역경로를 다시 설정해야 한다.
 
-규정과 초기 코드 검토 내용은 [`REVIEW.md`](REVIEW.md), 경로 제어 인터페이스는
-[`CONTROL_PATH_INTERFACE_KO.md`](src/morai_path_manager/docs/CONTROL_PATH_INTERFACE_KO.md)를 참고한다.
+경로 제어 인터페이스는
+[`CONTROL_PATH_INTERFACE_KO.md`](src/morai_path_manager/docs/CONTROL_PATH_INTERFACE_KO.md)를
+참고한다.
