@@ -4,7 +4,8 @@
 센서 장착 TF, 경로 선택과 RViz 표시는 다른 패키지가 담당한다.
 
 현재 대회 시뮬레이터의 sensor noise를 모두 끈 상태를 위한 **직접 결합** 구현이다.
-평균, 저역통과 필터, 보간, EKF와 UKF는 사용하지 않는다.
+Pose에는 평균, 보간, EKF와 UKF를 사용하지 않으며, odometry 선속도만 선택적으로
+1차 저역통과 필터를 적용한다.
 
 ## 노드 구성
 
@@ -52,9 +53,24 @@ GPS local point + normalized IMU
 | 최종 출력 | `/localization/odometry` | `nav_msgs/Odometry` | `map` → `base_link` |
 | TF | `map -> base_footprint` | dynamic TF | 차량 위치와 yaw |
 
-`/localization/odometry`의 선속도는 연속 GPS XY의 단순 유한차분이며 필터링하지
-않는다. 각속도 Z는 IMU 값을 그대로 사용한다. 첫 GPS 점 또는 잘못된 시간 간격
-에서는 선속도가 0으로 남는다.
+`/localization/odometry`의 선속도는 연속 GPS XY에서 계산한다. GPS 두 점으로 map
+속도 `(vx_map, vy_map)`를 만들고, 동기화된 IMU yaw `ψ`로 차량 좌표계에 투영한다.
+
+```text
+longitudinal_raw = cos(ψ) * vx_map + sin(ψ) * vy_map
+lateral_raw      = -sin(ψ) * vx_map + cos(ψ) * vy_map
+alpha = dt / (velocity_filter_time_constant_sec + dt)
+filtered = previous_filtered + alpha * (raw - previous_filtered)
+```
+
+`velocity_filter_time_constant_sec: 0`이면 `alpha = 1`이므로 필터를 끈다. GPS는
+연속 map 위치와 timestamp를 제공하고 IMU는 이 map 속도를 차량 전방/좌측 성분으로
+바꾸는 yaw를 제공한다. 첫 유효 GPS 점은 기준점만 설정하므로 odometry는 두 번째
+유효 점부터 발행된다. timestamp 역행, 너무 짧거나 긴 간격, 비유한 입력 또는
+`maximum_velocity_mps` 초과는 estimate를 무효화한다. 유한하지만 시간 또는 속도
+게이트에 걸린 점은 새 기준점으로 저장하고 필터를 reset하며, 비유한 입력은
+필터만 reset한다.
+각속도 Z는 IMU 값을 그대로 사용한다.
 
 ## yaw 처리
 
@@ -101,6 +117,10 @@ fusion은 최신 GPS와 IMU를 사용하지만 다음 조건이면 출력을 갱
 | `max_sensor_skew_sec` | `0.2` | GPS/IMU timestamp 최대 차이 |
 | `max_gps_age_sec` | `1.0` | GPS 최대 age |
 | `max_imu_age_sec` | `0.25` | IMU 최대 age |
+| `minimum_velocity_dt_sec` | `0.005` | 선속도 계산의 최소 GPS 간격 |
+| `maximum_velocity_dt_sec` | `0.25` | 선속도 계산의 최대 GPS 간격 |
+| `maximum_velocity_mps` | `50.0` | 허용 map 속도 상한 |
+| `velocity_filter_time_constant_sec` | `0.10` | 선속도 LPF 시간상수 (`0`이면 끔) |
 
 map이 바뀌면 CRS, UTM zone, offset과 전역경로를 함께 검증해야 한다.
 
@@ -161,6 +181,7 @@ roslaunch morai_bringup path.launch
 
 ## noise를 켤 때
 
-대회용 GPS/IMU noise를 활성화하면 현재 direct fusion을 그대로 사용하지 않는다.
+대회용 GPS/IMU noise를 활성화하면 현재 direct fusion과 단순 velocity LPF를
+그대로 사용하지 않는다.
 토픽 계약은 유지하면서 `localization_fusion_node`만 EKF/UKF 또는
 `robot_localization` 기반 구현으로 교체하는 것이 원칙이다.

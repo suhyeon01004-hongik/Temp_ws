@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <stdexcept>
 #include <string>
 
@@ -12,6 +13,7 @@
 #include <tf2_ros/transform_broadcaster.h>
 
 #include "morai_localization/imu_orientation.hpp"
+#include "morai_localization/velocity_estimator.hpp"
 
 namespace morai_localization {
 namespace {
@@ -65,10 +67,12 @@ class LocalizationFusionNode {
     private_node_.param("max_sensor_skew_sec", max_sensor_skew_sec_, 0.2);
     private_node_.param("max_gps_age_sec", max_gps_age_sec_, 1.0);
     private_node_.param("max_imu_age_sec", max_imu_age_sec_, 0.25);
-    private_node_.param("minimum_velocity_dt_sec",
-                        minimum_velocity_dt_sec_, 0.001);
-    private_node_.param("maximum_velocity_dt_sec",
-                        maximum_velocity_dt_sec_, 1.0);
+    VelocityEstimatorConfig config;
+    private_node_.param("minimum_velocity_dt_sec", config.minimum_dt_sec, 0.005);
+    private_node_.param("maximum_velocity_dt_sec", config.maximum_dt_sec, 0.25);
+    private_node_.param("maximum_velocity_mps", config.maximum_speed_mps, 50.0);
+    private_node_.param("velocity_filter_time_constant_sec",
+                        config.filter_time_constant_sec, 0.10);
 
     if (gps_topic_.empty() || imu_topic_.empty() || pose_topic_.empty() ||
         odometry_topic_.empty() || map_frame_id_.empty() ||
@@ -86,12 +90,7 @@ class LocalizationFusionNode {
     requirePositive("max_sensor_skew_sec", max_sensor_skew_sec_);
     requirePositive("max_gps_age_sec", max_gps_age_sec_);
     requirePositive("max_imu_age_sec", max_imu_age_sec_);
-    requirePositive("minimum_velocity_dt_sec", minimum_velocity_dt_sec_);
-    requirePositive("maximum_velocity_dt_sec", maximum_velocity_dt_sec_);
-    if (maximum_velocity_dt_sec_ <= minimum_velocity_dt_sec_) {
-      throw std::invalid_argument(
-          "maximum_velocity_dt_sec must exceed minimum_velocity_dt_sec");
-    }
+    velocity_estimator_ = std::make_unique<VelocityEstimator>(config);
   }
 
   static ros::Time messageStamp(const ros::Time& stamp) {
@@ -117,30 +116,9 @@ class LocalizationFusionNode {
     geometry_msgs::PointStamped current = *point;
     current.header.stamp = messageStamp(current.header.stamp);
     current.header.frame_id = map_frame_id_;
-    updateRawVelocity(current);
     gps_ = current;
     has_gps_ = true;
     publishIfReady();
-  }
-
-  void updateRawVelocity(const geometry_msgs::PointStamped& current) {
-    has_velocity_ = false;
-    if (has_previous_gps_) {
-      const double dt =
-          (current.header.stamp - previous_gps_.header.stamp).toSec();
-      if (dt >= minimum_velocity_dt_sec_ &&
-          dt <= maximum_velocity_dt_sec_) {
-        velocity_map_x_ =
-            (current.point.x - previous_gps_.point.x) / dt;
-        velocity_map_y_ =
-            (current.point.y - previous_gps_.point.y) / dt;
-        has_velocity_ =
-            std::isfinite(velocity_map_x_) &&
-            std::isfinite(velocity_map_y_);
-      }
-    }
-    previous_gps_ = current;
-    has_previous_gps_ = true;
   }
 
   void handleImu(const sensor_msgs::Imu::ConstPtr& imu) {
@@ -199,6 +177,8 @@ class LocalizationFusionNode {
     const double raw_yaw = yawFromQuaternion(imu_.orientation);
     const double yaw = normalizeAngle(
         yaw_sign_ * raw_yaw + yaw_offset_deg_ * kDegreesToRadians);
+    const VelocityEstimate velocity = velocity_estimator_->update(
+        gps_.point.x, gps_.point.y, gps_.header.stamp.toSec(), yaw);
     const geometry_msgs::Quaternion orientation = quaternionFromYaw(yaw);
     const ros::Time stamp =
         gps_.header.stamp > imu_.header.stamp
@@ -212,21 +192,16 @@ class LocalizationFusionNode {
     pose.pose.orientation = orientation;
     pose_publisher_.publish(pose);
 
-    nav_msgs::Odometry odometry;
-    odometry.header = pose.header;
-    odometry.child_frame_id = base_frame_id_;
-    odometry.pose.pose = pose.pose;
-    if (has_velocity_) {
-      const double cosine = std::cos(yaw);
-      const double sine = std::sin(yaw);
-      odometry.twist.twist.linear.x =
-          cosine * velocity_map_x_ + sine * velocity_map_y_;
-      odometry.twist.twist.linear.y =
-          -sine * velocity_map_x_ + cosine * velocity_map_y_;
+    if (velocity.valid) {
+      nav_msgs::Odometry odometry;
+      odometry.header = pose.header;
+      odometry.child_frame_id = base_frame_id_;
+      odometry.pose.pose = pose.pose;
+      odometry.twist.twist.linear.x = velocity.longitudinal_mps;
+      odometry.twist.twist.linear.y = velocity.lateral_mps;
+      odometry.twist.twist.angular.z = yaw_sign_ * imu_.angular_velocity.z;
+      odometry_publisher_.publish(odometry);
     }
-    odometry.twist.twist.angular.z =
-        yaw_sign_ * imu_.angular_velocity.z;
-    odometry_publisher_.publish(odometry);
 
     if (publish_tf_) {
       geometry_msgs::TransformStamped transform;
@@ -256,22 +231,16 @@ class LocalizationFusionNode {
   double max_sensor_skew_sec_ = 0.2;
   double max_gps_age_sec_ = 1.0;
   double max_imu_age_sec_ = 0.25;
-  double minimum_velocity_dt_sec_ = 0.001;
-  double maximum_velocity_dt_sec_ = 1.0;
+  std::unique_ptr<VelocityEstimator> velocity_estimator_;
   ros::Publisher pose_publisher_;
   ros::Publisher odometry_publisher_;
   ros::Subscriber gps_subscriber_;
   ros::Subscriber imu_subscriber_;
   tf2_ros::TransformBroadcaster transform_broadcaster_;
   geometry_msgs::PointStamped gps_;
-  geometry_msgs::PointStamped previous_gps_;
   sensor_msgs::Imu imu_;
   bool has_gps_ = false;
-  bool has_previous_gps_ = false;
   bool has_imu_ = false;
-  bool has_velocity_ = false;
-  double velocity_map_x_ = 0.0;
-  double velocity_map_y_ = 0.0;
 };
 
 }  // namespace

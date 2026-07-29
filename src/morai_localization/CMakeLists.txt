@@ -13,7 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES morai_utm_projector morai_imu_orientation
+  LIBRARIES morai_utm_projector morai_imu_orientation morai_velocity_estimator
   CATKIN_DEPENDS geometry_msgs nav_msgs roscpp sensor_msgs tf2_ros
 )
 
@@ -35,6 +35,14 @@ add_library(morai_imu_orientation
 )
 target_compile_features(morai_imu_orientation PUBLIC cxx_std_14)
 target_link_libraries(morai_imu_orientation
+  ${catkin_LIBRARIES}
+)
+
+add_library(morai_velocity_estimator
+  src/velocity_estimator.cpp
+)
+target_compile_features(morai_velocity_estimator PUBLIC cxx_std_14)
+target_link_libraries(morai_velocity_estimator
   ${catkin_LIBRARIES}
 )
 
@@ -63,6 +71,7 @@ add_executable(localization_fusion_node
 target_compile_features(localization_fusion_node PUBLIC cxx_std_14)
 target_link_libraries(localization_fusion_node
   morai_imu_orientation
+  morai_velocity_estimator
   ${catkin_LIBRARIES}
 )
 
@@ -70,6 +79,7 @@ install(
   TARGETS
     morai_utm_projector
     morai_imu_orientation
+    morai_velocity_estimator
     gps_utm_projector_node
     imu_orientation_adapter_node
     localization_fusion_node
@@ -107,6 +117,17 @@ if(CATKIN_ENABLE_TESTING)
     target_compile_features(test_imu_orientation PUBLIC cxx_std_14)
     target_link_libraries(test_imu_orientation
       morai_imu_orientation
+      ${catkin_LIBRARIES}
+    )
+  endif()
+
+  catkin_add_gtest(test_velocity_estimator
+    test/test_velocity_estimator.cpp
+  )
+  if(TARGET test_velocity_estimator)
+    target_compile_features(test_velocity_estimator PUBLIC cxx_std_14)
+    target_link_libraries(test_velocity_estimator
+      morai_velocity_estimator
       ${catkin_LIBRARIES}
     )
   endif()

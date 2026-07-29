@@ -38,6 +38,9 @@ max_sensor_skew_sec: 0.2
 max_gps_age_sec: 1.0
 max_imu_age_sec: 0.25
 
-# Odometry linear velocity is an unfiltered finite difference of GPS positions.
-minimum_velocity_dt_sec: 0.001
-maximum_velocity_dt_sec: 1.0
+# Odometry starts with the second valid GPS point. GPS map velocity is projected
+# with synchronized IMU yaw and low-pass filtered in the vehicle frame.
+minimum_velocity_dt_sec: 0.005
+maximum_velocity_dt_sec: 0.25
+maximum_velocity_mps: 50.0
+velocity_filter_time_constant_sec: 0.10
