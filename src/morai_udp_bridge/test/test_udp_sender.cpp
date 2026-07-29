@@ -2,6 +2,7 @@
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -30,14 +31,15 @@ TEST(UdpSender, SendsExactDatagramToLoopbackReceiver) {
                    receiver, reinterpret_cast<struct sockaddr*>(&address),
                    &address_size));
 
-  struct timeval timeout {};
-  timeout.tv_sec = 1;
-  ASSERT_EQ(0, ::setsockopt(receiver, SOL_SOCKET, SO_RCVTIMEO, &timeout,
-                            sizeof(timeout)));
-
   UdpSender sender("127.0.0.1", ntohs(address.sin_port));
   const std::array<std::uint8_t, 3U> expected{{0x10U, 0x20U, 0x30U}};
   sender.send(expected.data(), expected.size());
+
+  struct pollfd descriptor {};
+  descriptor.fd = receiver;
+  descriptor.events = POLLIN;
+  ASSERT_EQ(1, ::poll(&descriptor, 1U, 1000));
+  ASSERT_NE(0, descriptor.revents & POLLIN);
 
   std::array<std::uint8_t, 8U> buffer{};
   const ssize_t received = ::recv(receiver, buffer.data(), buffer.size(), 0);
