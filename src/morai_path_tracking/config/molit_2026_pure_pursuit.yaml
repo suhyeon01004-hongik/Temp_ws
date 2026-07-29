@@ -1,0 +1,25 @@
+pure_pursuit_controller_node:
+  local_path_topic: /local_path
+  odometry_topic: /localization/odometry
+  command_topic: /control/actuator_command
+  expected_frame_id: map
+  control_rate_hz: 30.0
+  path_timeout_sec: 0.25
+  odometry_timeout_sec: 0.25
+  maximum_input_skew_sec: 0.10
+  safe_brake_command: 0.50
+  wheelbase_m: 3.0
+  lookahead_base_m: 3.0
+  lookahead_speed_gain_sec: 0.5
+  lookahead_min_m: 3.0
+  lookahead_max_m: 6.0
+  minimum_target_distance_m: 0.5
+  maximum_steering_angle_deg: 40.0
+  target_speed_mps: 3.0
+  speed_kp: 0.35
+  speed_ki: 0.08
+  speed_kd: 0.02
+  speed_integral_limit: 2.0
+  speed_error_deadband_mps: 0.05
+  maximum_accel_command: 0.40
+  maximum_brake_command: 0.60

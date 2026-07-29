@@ -1,0 +1,36 @@
+<launch>
+  <node pkg="morai_path_tracking"
+        type="pure_pursuit_controller_node"
+        name="pure_pursuit_controller_node"
+        output="screen">
+    <param name="local_path_topic" value="/local_path"/>
+    <param name="odometry_topic" value="/localization/odometry"/>
+    <param name="command_topic" value="/control/actuator_command"/>
+    <param name="expected_frame_id" value="map"/>
+    <param name="control_rate_hz" value="30.0"/>
+    <param name="path_timeout_sec" value="0.25"/>
+    <param name="odometry_timeout_sec" value="0.25"/>
+    <param name="maximum_input_skew_sec" value="0.10"/>
+    <param name="safe_brake_command" value="0.50"/>
+    <param name="wheelbase_m" value="3.0"/>
+    <param name="lookahead_base_m" value="3.0"/>
+    <param name="lookahead_speed_gain_sec" value="0.5"/>
+    <param name="lookahead_min_m" value="3.0"/>
+    <param name="lookahead_max_m" value="6.0"/>
+    <param name="minimum_target_distance_m" value="0.5"/>
+    <param name="maximum_steering_angle_deg" value="40.0"/>
+    <param name="target_speed_mps" value="3.0"/>
+    <param name="speed_kp" value="0.35"/>
+    <param name="speed_ki" value="0.08"/>
+    <param name="speed_kd" value="0.02"/>
+    <param name="speed_integral_limit" value="2.0"/>
+    <param name="speed_error_deadband_mps" value="0.05"/>
+    <param name="maximum_accel_command" value="0.40"/>
+    <param name="maximum_brake_command" value="0.60"/>
+  </node>
+
+  <test test-name="pure_pursuit_controller"
+        pkg="morai_path_tracking"
+        type="test_pure_pursuit_controller.py"
+        time-limit="20.0"/>
+</launch>
