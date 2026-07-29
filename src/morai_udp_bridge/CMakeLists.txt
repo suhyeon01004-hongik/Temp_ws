@@ -19,6 +19,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES morai_udp_bridge_protocol morai_udp_bridge_runtime
             morai_udp_bridge_control_protocol morai_udp_bridge_udp_sender
+            morai_udp_bridge_control_watchdog
   CATKIN_DEPENDS diagnostic_msgs message_runtime roscpp sensor_msgs std_msgs
 )
 
@@ -54,6 +55,11 @@ add_library(morai_udp_bridge_udp_sender
 )
 target_compile_features(morai_udp_bridge_udp_sender PUBLIC cxx_std_14)
 
+add_library(morai_udp_bridge_control_watchdog
+  src/control_watchdog.cpp
+)
+target_compile_features(morai_udp_bridge_control_watchdog PUBLIC cxx_std_14)
+
 add_executable(morai_udp_bridge_node
   src/bridge_node.cpp
 )
@@ -66,13 +72,30 @@ target_link_libraries(morai_udp_bridge_node
 )
 add_dependencies(morai_udp_bridge_node ${catkin_EXPORTED_TARGETS})
 
+add_executable(control_sender_node
+  src/control_sender_node.cpp
+)
+target_compile_features(control_sender_node PUBLIC cxx_std_14)
+target_link_libraries(control_sender_node
+  morai_udp_bridge_control_protocol
+  morai_udp_bridge_control_watchdog
+  morai_udp_bridge_udp_sender
+  ${catkin_LIBRARIES}
+)
+add_dependencies(control_sender_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
 install(
   TARGETS
     morai_udp_bridge_protocol
     morai_udp_bridge_runtime
     morai_udp_bridge_control_protocol
     morai_udp_bridge_udp_sender
+    morai_udp_bridge_control_watchdog
     morai_udp_bridge_node
+    control_sender_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -84,7 +107,7 @@ install(
 )
 
 install(
-  DIRECTORY config docs
+  DIRECTORY config launch docs
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
@@ -99,6 +122,15 @@ if(CATKIN_ENABLE_TESTING)
   if(TARGET test_control_protocol)
     target_compile_features(test_control_protocol PUBLIC cxx_std_14)
     target_link_libraries(test_control_protocol morai_udp_bridge_control_protocol)
+  endif()
+
+  catkin_add_gtest(test_control_watchdog test/test_control_watchdog.cpp)
+  if(TARGET test_control_watchdog)
+    target_compile_features(test_control_watchdog PUBLIC cxx_std_14)
+    target_link_libraries(test_control_watchdog
+      morai_udp_bridge_control_watchdog
+      morai_udp_bridge_control_protocol
+    )
   endif()
 
   # CMake test targets are global across this workspace; vehicle_control

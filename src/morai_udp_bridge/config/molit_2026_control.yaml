@@ -1,0 +1,10 @@
+control_sender_node:
+  command_topic: /control/actuator_command
+  destination_ip: 127.0.0.1
+  destination_port: 9093
+  send_rate_hz: 50.0
+  command_timeout_sec: 0.25
+  safe_brake_command: 0.50
+  maximum_steering_angle_deg: 40.0
+  steering_sign: 1.0
+  drive_gear: 4

@@ -1,7 +1,8 @@
-# MORAI UDP 센서 브리지
+# MORAI UDP wire 브리지
 
 `morai_udp_bridge`는 MORAI가 UDP로 보내는 카메라, GPS와 IMU 패킷을 ROS1
-센서 메시지로 변환한다. 이 패키지는 MORAI 패킷 규격에 직접 종속된다.
+센서 메시지로 변환하고, 자율 주행 제어 명령을 MORAI UDP 제어 packet으로
+전송한다. 이 패키지는 MORAI wire packet 규격에 직접 종속된다.
 
 차량 제어, GPS map 투영, 경로 생성, 센서 장착 TF와 LiDAR packet decoding은
 담당하지 않는다. MORAI native VLP-16 데이터는 `morai_bringup`이 공식 ROS
@@ -37,6 +38,32 @@ LiDAR 관련 토픽은 bringup과 Velodyne driver가 발행한다.
 | `/sensors/lidar/packets` | `velodyne_msgs/VelodyneScan` | VLP-16 원시 패킷 |
 | `/lidar3D` | `sensor_msgs/PointCloud2` | 변환된 point cloud |
 
+## 자율 제어 UDP 송신
+
+센서 수신 책임은 기존과 같다. 별도 `control_sender_node`는
+`/control/actuator_command` (`morai_udp_bridge/ActuatorCommand`)만 구독하여
+MORAI 제어 datagram을 전송한다.
+
+| 필드 | 단위/범위 | 의미 |
+| --- | --- | --- |
+| `header` | ROS header | controller가 발행하는 명령 header |
+| `accel` | `[0, 1]` | 가속 pedal 명령 |
+| `brake` | `[0, 1]` | 제동 pedal 명령 |
+| `steering_angle_rad` | rad, `±maximum_steering_angle_deg` | 물리 조향각 |
+
+`accel`과 `brake`는 동시에 0보다 클 수 없다. sender는 기본 50 Hz의 wall timer로
+datagram을 보내며, 유효한 명령을 0.25초 동안 받지 못하면 accel과 조향을 0으로
+바꾸고 `safe_brake_command`(기본 `0.50`)를 보낸다. 유효하지 않은 명령은 watchdog
+수신 시각을 갱신하지 않는다.
+
+기본 설정에서 물리 조향 `±40 deg`는 MORAI normalized steering `±1`로 변환된다.
+`steering_sign`은 차종 좌표계와 MORAI 좌표계의 부호가 반대일 때 `-1.0`으로
+설정한다. MORAI Control Destination Port는 `9093`이어야 한다.
+
+자율 `control_sender_node`와 수동 `vehicle_control` UDP sender를 동시에 실행하면
+안 된다. 두 sender가 같은 MORAI 제어 대상에 서로 다른 datagram을 보내므로, 한
+번에 하나만 실행한다.
+
 ## 설정 파일
 
 | 파일 | 용도 |
@@ -44,6 +71,7 @@ LiDAR 관련 토픽은 bringup과 Velodyne driver가 발행한다.
 | `config/molit_2026.yaml` | 카메라 3대, GPS, IMU 전체 수신 |
 | `config/molit_2026_localization.yaml` | localization/path 시험용 GPS+IMU 수신 |
 | `config/molit_2026_gps_only.yaml` | GPS projector 단독 시험용 |
+| `config/molit_2026_control.yaml` | 자율 ActuatorCommand UDP sender |
 
 현재 `0725demo.json`의 GPS는 30 Hz, Destination Port `9301`이고 IMU는
 50 Hz, Destination Port `9303`이며
@@ -111,6 +139,23 @@ LiDAR 없이 카메라/GPS/IMU를 모두 받을 때:
 
 ```bash
 roslaunch morai_bringup molit_2026_sensors.launch use_lidar:=false
+```
+
+자율 제어 sender만 실행할 때:
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/devel/setup.bash
+roslaunch morai_udp_bridge control_sender.launch
+```
+
+별도 terminal에서 명령 interface와 50 Hz 발행을 확인한다.
+
+```bash
+rostopic info /control/actuator_command
+rostopic hz /control/actuator_command
+rostopic pub -r 50 /control/actuator_command morai_udp_bridge/ActuatorCommand \
+  '{accel: 0.20, brake: 0.0, steering_angle_rad: 0.0}'
 ```
 
 ## MORAI Sensor Edit와 맞출 값
