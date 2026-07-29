@@ -15,7 +15,7 @@ from nav_msgs.msg import Odometry, Path
 class PurePursuitControllerTest(unittest.TestCase):
     SAFE_BRAKE = 0.5
     INPUT_TIMEOUT_SEC = 0.25
-    INVALID_REACTION_TIMEOUT_SEC = 0.20
+    INVALID_REACTION_TIMEOUT_SEC = 0.12
     TIMEOUT_REACTION_GRACE_SEC = 0.20
     ODOMETRY_REFRESH_PERIOD_SEC = 0.04
     WAIT_TIMEOUT_SEC = 3.0
@@ -47,6 +47,14 @@ class PurePursuitControllerTest(unittest.TestCase):
             and command.steering_angle_rad == 0.0
         )
 
+    @staticmethod
+    def _safe_at_or_after_cutoff(receipt_time, command, cutoff):
+        del receipt_time
+        return (
+            PurePursuitControllerTest._is_safe(command)
+            and command.header.stamp >= cutoff
+        )
+
     def _wait_for(self, predicate, timeout_sec, description):
         deadline = time.monotonic() + timeout_sec
         while time.monotonic() < deadline and not rospy.is_shutdown():
@@ -62,40 +70,53 @@ class PurePursuitControllerTest(unittest.TestCase):
             rospy.sleep(0.01)
         self.fail("timed out waiting for " + description)
 
-    def _safe_commands_in_window(self, start, not_before, deadline):
+    def _safe_commands_before_output_cutoff(self, start, cutoff):
         return [
             command
             for receipt_time, command in self._commands_after(start)
-            if receipt_time >= not_before
-            and receipt_time <= deadline
-            and self._is_safe(command)
+            if self._is_safe(command) and command.header.stamp < cutoff
         ]
 
-    def _wait_for_safe_in_window(self, start, not_before, deadline, description):
+    def _wait_for_safe_output_window(
+        self, start, not_before, output_deadline, monotonic_deadline, description
+    ):
         self._wait_for_until(
-            lambda: bool(self._safe_commands_in_window(start, not_before, deadline)),
-            deadline,
+            lambda: any(
+                self._is_safe(command)
+                and command.header.stamp >= not_before
+                and command.header.stamp < output_deadline
+                for _, command in self._commands_after(start)
+            ),
+            monotonic_deadline,
             description,
         )
 
-    def _assert_no_safe_before(self, start, cutoff, description):
-        safe_receipts = [
-            receipt_time
-            for receipt_time, command in self._commands_after(start)
-            if receipt_time < cutoff and self._is_safe(command)
-        ]
+    def _assert_no_safe_output_before(self, start, cutoff, description):
+        early_safe_commands = self._safe_commands_before_output_cutoff(start, cutoff)
         self.assertFalse(
-            safe_receipts,
-            "{} (safe receipts={}, cutoff={:.6f}, now={:.6f})".format(
-                description, safe_receipts, cutoff, time.monotonic()
+            early_safe_commands,
+            "{} (cutoff={} now={})".format(
+                description, cutoff.to_sec(), rospy.Time.now().to_sec()
             ),
         )
 
-    def _wait_without_safe_before(self, start, cutoff, description):
-        while time.monotonic() < cutoff and not rospy.is_shutdown():
-            self._assert_no_safe_before(start, cutoff, description)
+    def _wait_for_safe_after_cutoff_without_early(
+        self, start, cutoff, monotonic_deadline, description
+    ):
+        while time.monotonic() < monotonic_deadline and not rospy.is_shutdown():
+            self._assert_no_safe_output_before(
+                start, cutoff, "controller published a safe command before " + description
+            )
+            if any(
+                self._safe_at_or_after_cutoff(receipt_time, command, cutoff)
+                for receipt_time, command in self._commands_after(start)
+            ):
+                return
             rospy.sleep(0.01)
-        self._assert_no_safe_before(start, cutoff, description)
+        self._assert_no_safe_output_before(
+            start, cutoff, "controller published a safe command before " + description
+        )
+        self.fail("timed out waiting for " + description)
 
     def _publish_inputs(
         self,
@@ -109,7 +130,6 @@ class PurePursuitControllerTest(unittest.TestCase):
         orientation=(0.0, 0.0, 0.0, 1.0),
         publish_odometry=True,
         publish_path=True,
-        return_stamps=False,
     ):
         if points is None:
             points = [(float(x), 0.0) for x in range(10)]
@@ -137,17 +157,21 @@ class PurePursuitControllerTest(unittest.TestCase):
             path.poses.append(pose)
 
         publish_mark = time.monotonic()
+        publication_stamp = rospy.Time.now()
         if odometry_stamp is None:
-            odometry.header.stamp = rospy.Time.now()
+            odometry.header.stamp = publication_stamp
         if path_stamp is None:
-            path.header.stamp = rospy.Time.now()
+            path.header.stamp = publication_stamp
         if publish_odometry:
             self._odometry_publisher.publish(odometry)
         if publish_path:
             self._path_publisher.publish(path)
-        if return_stamps:
-            return publish_mark, odometry.header.stamp, path.header.stamp
-        return publish_mark
+        return {
+            "monotonic_mark": publish_mark,
+            "publication_stamp": publication_stamp,
+            "odometry_stamp": odometry.header.stamp,
+            "path_stamp": path.header.stamp,
+        }
 
     def _wait_for_subscriptions(self):
         self._wait_for(
@@ -158,12 +182,15 @@ class PurePursuitControllerTest(unittest.TestCase):
         )
 
     def _establish_valid_baseline(self):
-        mark, _, path_stamp = self._publish_inputs(return_stamps=True)
+        inputs = self._publish_inputs()
+        mark = inputs["monotonic_mark"]
+        cutoff = inputs["path_stamp"] + rospy.Duration(self.INPUT_TIMEOUT_SEC)
         self._wait_for(
             lambda: any(
                 command.accel > 0.0
                 and command.brake == 0.0
                 and abs(command.steering_angle_rad) < 1.0e-4
+                and command.header.stamp >= inputs["publication_stamp"]
                 for _, command in self._commands_after(mark)
             ),
             self.WAIT_TIMEOUT_SEC,
@@ -175,16 +202,32 @@ class PurePursuitControllerTest(unittest.TestCase):
             if command.accel > 0.0
             and command.brake == 0.0
             and abs(command.steering_angle_rad) < 1.0e-4
+            and command.header.stamp >= inputs["publication_stamp"]
         ]
-        return mark, min(valid_receipts), path_stamp
+        return {
+            "monotonic_mark": mark,
+            "valid_receipt": min(valid_receipts),
+            "publication_stamp": inputs["publication_stamp"],
+            "retained_path_stamp": inputs["path_stamp"],
+            "cutoff": cutoff,
+        }
 
     def _assert_invalid_inputs_brake(self, description, **kwargs):
-        self._establish_valid_baseline()
-        mark = self._publish_inputs(**kwargs)
-        self._wait_for_safe_in_window(
-            mark,
-            mark,
-            mark + self.INVALID_REACTION_TIMEOUT_SEC,
+        baseline = self._establish_valid_baseline()
+        invalid_inputs = self._publish_inputs(**kwargs)
+        remaining_sec = (baseline["cutoff"] - invalid_inputs["publication_stamp"]).to_sec()
+        if remaining_sec < self.INVALID_REACTION_TIMEOUT_SEC:
+            self.fail(
+                "fresh baseline left only {:.3f}s before its natural expiry; "
+                "need at least {:.3f}s for invalid-input reaction".format(
+                    remaining_sec, self.INVALID_REACTION_TIMEOUT_SEC
+                )
+            )
+        self._wait_for_safe_output_window(
+            invalid_inputs["monotonic_mark"],
+            invalid_inputs["publication_stamp"],
+            baseline["cutoff"],
+            time.monotonic() + self.INVALID_REACTION_TIMEOUT_SEC,
             description,
         )
 
@@ -243,50 +286,65 @@ class PurePursuitControllerTest(unittest.TestCase):
                 process.wait(timeout=1.0)
             rospy.delete_param("/" + node_name)
 
+    def test_output_stamp_classification_rejects_late_delivery_of_early_safe(self):
+        cutoff = rospy.Time(10, 250000000)
+        command = ActuatorCommand()
+        command.brake = self.SAFE_BRAKE
+        command.header.stamp = rospy.Time(10, 249000000)
+        self.assertFalse(
+            self._safe_at_or_after_cutoff(11.0, command, cutoff),
+            "an early controller output must remain early when delivery is delayed",
+        )
+
     def test_safe_state_for_missing_and_invalid_inputs(self):
         initial_mark = time.monotonic()
-        self._wait_for_safe_in_window(
-            initial_mark,
-            initial_mark,
-            initial_mark + self.WAIT_TIMEOUT_SEC,
+        self._wait_for(
+            lambda: any(
+                self._is_safe(command) for _, command in self._commands_after(initial_mark)
+            ),
+            self.WAIT_TIMEOUT_SEC,
             "initial safe braking command before controller inputs",
         )
         self._wait_for_subscriptions()
 
-        path_mark, valid_baseline_receipt, retained_path_stamp = (
-            self._establish_valid_baseline()
+        baseline = self._establish_valid_baseline()
+        path_timeout_cutoff = baseline["cutoff"]
+        pre_cutoff_deadline = (
+            baseline["monotonic_mark"]
+            + self.INPUT_TIMEOUT_SEC
+            + self.TIMEOUT_REACTION_GRACE_SEC
         )
-        path_timeout_cutoff = path_mark + self.INPUT_TIMEOUT_SEC
-        while time.monotonic() < path_timeout_cutoff and not rospy.is_shutdown():
+        while (
+            rospy.Time.now() < path_timeout_cutoff
+            and time.monotonic() < pre_cutoff_deadline
+            and not rospy.is_shutdown()
+        ):
             self._publish_inputs(
                 publish_path=False,
-                odometry_stamp=retained_path_stamp,
+                odometry_stamp=baseline["retained_path_stamp"],
             )
-            self._assert_no_safe_before(
-                valid_baseline_receipt,
+            self._assert_no_safe_output_before(
+                baseline["valid_receipt"],
                 path_timeout_cutoff,
                 "controller braked before the retained path receipt timeout",
             )
             refresh_deadline = min(
-                path_timeout_cutoff,
+                pre_cutoff_deadline,
                 time.monotonic() + self.ODOMETRY_REFRESH_PERIOD_SEC,
             )
             while time.monotonic() < refresh_deadline and not rospy.is_shutdown():
-                self._assert_no_safe_before(
-                    valid_baseline_receipt,
+                self._assert_no_safe_output_before(
+                    baseline["valid_receipt"],
                     path_timeout_cutoff,
                     "controller braked before the retained path receipt timeout",
                 )
                 rospy.sleep(0.01)
-        self._assert_no_safe_before(
-            valid_baseline_receipt,
+        if rospy.Time.now() < path_timeout_cutoff:
+            self.fail("ROS time did not reach the retained path timeout before deadline")
+        self._wait_for_safe_after_cutoff_without_early(
+            baseline["valid_receipt"],
             path_timeout_cutoff,
-            "controller braked before the retained path receipt timeout",
-        )
-        self._wait_for_safe_in_window(
-            valid_baseline_receipt,
-            path_timeout_cutoff,
-            path_timeout_cutoff + self.TIMEOUT_REACTION_GRACE_SEC,
+            time.monotonic() + self.TIMEOUT_REACTION_GRACE_SEC,
             "safe brake after the retained path receipt timeout",
         )
 
@@ -334,30 +392,27 @@ class PurePursuitControllerTest(unittest.TestCase):
     def test_timeout_does_not_brake_immediately_after_valid_left_command(self):
         self._wait_for_subscriptions()
         self._establish_valid_baseline()
-        mark = self._publish_inputs(
+        inputs = self._publish_inputs(
             points=[(0.0, 0.0), (3.0, 1.5), (6.0, 3.0), (9.0, 4.5)]
         )
-        timeout_cutoff = mark + self.INPUT_TIMEOUT_SEC
+        mark = inputs["monotonic_mark"]
+        timeout_cutoff = inputs["path_stamp"] + rospy.Duration(self.INPUT_TIMEOUT_SEC)
         self._wait_for_until(
             lambda: any(
-                receipt_time < timeout_cutoff
+                command.header.stamp < timeout_cutoff
+                and command.header.stamp >= inputs["publication_stamp"]
                 and command.steering_angle_rad > 0.0
                 and command.accel > 0.0
                 and command.brake == 0.0
-                for receipt_time, command in self._commands_after(mark)
+                for _, command in self._commands_after(mark)
             ),
-            timeout_cutoff,
+            mark + self.INVALID_REACTION_TIMEOUT_SEC,
             "positive steering command for fresh left-curving path",
         )
-        self._wait_without_safe_before(
+        self._wait_for_safe_after_cutoff_without_early(
             mark,
             timeout_cutoff,
-            "controller braked before the input timeout",
-        )
-        self._wait_for_safe_in_window(
-            mark,
-            timeout_cutoff,
-            timeout_cutoff + self.TIMEOUT_REACTION_GRACE_SEC,
+            mark + self.INPUT_TIMEOUT_SEC + self.TIMEOUT_REACTION_GRACE_SEC,
             "safe braking command after the input timeout",
         )
 
