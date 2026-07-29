@@ -3,6 +3,7 @@ devel/
 install/
 logs/
 .catkin_tools/
+.worktrees/
 
 .vscode/
 .idea/
