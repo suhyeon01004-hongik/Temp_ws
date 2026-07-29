@@ -1,5 +1,5 @@
 joy_node:
-  dev: /dev/input/by-id/usb-ShanWan_Xbox360_For_Windows_10F36D6-joystick
+  dev: /dev/input/js0
   deadzone: 0.05
   autorepeat_rate: 20.0
   coalesce_interval: 0.001

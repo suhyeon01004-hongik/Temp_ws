@@ -28,14 +28,17 @@ catkin_make install
 source ~/catkin_ws/install/setup.bash
 ```
 
-기본 장치 경로는 아래와 같다.
+한 PC에 게임패드 한 대를 연결하는 환경을 기준으로 기본 장치 경로는 아래와
+같다.
 
 ```text
-/dev/input/by-id/usb-ShanWan_Xbox360_For_Windows_10F36D6-joystick
+/dev/input/js0
 ```
 
-다른 CYVOX를 연결하면 `config/cyvox_mx.yaml`의 `joy_node/dev`를 실제
-`/dev/input/by-id/*-joystick` 경로로 바꾼다.
+따라서 같은 모델의 다른 CYVOX를 연결해도 장치 시리얼과 관계없이 인식한다.
+게임패드를 여러 대 연결하면 `/dev/input/js0`, `/dev/input/js1` 순서가 달라질
+수 있으므로 그때만 `config/cyvox_mx.yaml`의 `joy_node/dev`를 원하는 장치로
+바꾼다.
 
 ## MORAI 설정
 
