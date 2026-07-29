@@ -10,6 +10,7 @@
 #include <ros/ros.h>
 
 #include "morai_udp_bridge/ActuatorCommand.h"
+#include "morai_udp_bridge/control_sender_config.hpp"
 #include "morai_udp_bridge/control_protocol.hpp"
 #include "morai_udp_bridge/control_watchdog.hpp"
 #include "morai_udp_bridge/udp_sender.hpp"
@@ -79,7 +80,6 @@ class ControlSenderNode {
     if (destination_port < 1 || destination_port > 65535) {
       throw std::invalid_argument("destination_port must be in 1..65535");
     }
-    requirePositiveFinite(send_rate_hz, "send_rate_hz");
     requirePositiveFinite(maximum_steering_angle_deg,
                           "maximum_steering_angle_deg");
     if (steering_sign != -1.0 && steering_sign != 1.0) {
@@ -96,8 +96,7 @@ class ControlSenderNode {
     protocol_config_.steering_sign = finiteFloat(steering_sign, "steering_sign");
     protocol_config_.drive_gear = static_cast<std::uint8_t>(drive_gear);
 
-    const float safe_brake = finiteFloat(safe_brake_command,
-                                         "safe_brake_command");
+    const float safe_brake = validatedSafeBrakeCommand(safe_brake_command);
     watchdog_.reset(new ControlWatchdog(command_timeout_sec, safe_brake));
 
     std::string protocol_error;
@@ -110,9 +109,10 @@ class ControlSenderNode {
         destination_ip, static_cast<std::uint16_t>(destination_port)));
     command_subscriber_ = node_.subscribe(
         command_topic, 1U, &ControlSenderNode::onCommand, this);
-    send_timer_ = node_.createWallTimer(
-        ros::WallDuration(1.0 / send_rate_hz), &ControlSenderNode::onSendTimer,
-        this);
+    const ros::WallDuration send_period =
+        controlSendPeriodFromRate(send_rate_hz);
+    send_timer_ = node_.createWallTimer(send_period,
+                                        &ControlSenderNode::onSendTimer, this);
   }
 
   ControlSenderNode(const ControlSenderNode&) = delete;

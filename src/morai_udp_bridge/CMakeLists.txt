@@ -20,6 +20,7 @@ catkin_package(
   LIBRARIES morai_udp_bridge_protocol morai_udp_bridge_runtime
             morai_udp_bridge_control_protocol morai_udp_bridge_udp_sender
             morai_udp_bridge_control_watchdog
+            morai_udp_bridge_control_sender_config
   CATKIN_DEPENDS diagnostic_msgs message_runtime roscpp sensor_msgs std_msgs
 )
 
@@ -60,6 +61,12 @@ add_library(morai_udp_bridge_control_watchdog
 )
 target_compile_features(morai_udp_bridge_control_watchdog PUBLIC cxx_std_14)
 
+add_library(morai_udp_bridge_control_sender_config
+  src/control_sender_config.cpp
+)
+target_compile_features(morai_udp_bridge_control_sender_config PUBLIC cxx_std_14)
+target_link_libraries(morai_udp_bridge_control_sender_config ${catkin_LIBRARIES})
+
 add_executable(morai_udp_bridge_node
   src/bridge_node.cpp
 )
@@ -78,6 +85,7 @@ add_executable(control_sender_node
 target_compile_features(control_sender_node PUBLIC cxx_std_14)
 target_link_libraries(control_sender_node
   morai_udp_bridge_control_protocol
+  morai_udp_bridge_control_sender_config
   morai_udp_bridge_control_watchdog
   morai_udp_bridge_udp_sender
   ${catkin_LIBRARIES}
@@ -94,6 +102,7 @@ install(
     morai_udp_bridge_control_protocol
     morai_udp_bridge_udp_sender
     morai_udp_bridge_control_watchdog
+    morai_udp_bridge_control_sender_config
     morai_udp_bridge_node
     control_sender_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
@@ -130,6 +139,15 @@ if(CATKIN_ENABLE_TESTING)
     target_link_libraries(test_control_watchdog
       morai_udp_bridge_control_watchdog
       morai_udp_bridge_control_protocol
+    )
+  endif()
+
+  catkin_add_gtest(test_control_sender_config test/test_control_sender_config.cpp)
+  if(TARGET test_control_sender_config)
+    target_compile_features(test_control_sender_config PUBLIC cxx_std_14)
+    target_link_libraries(test_control_sender_config
+      morai_udp_bridge_control_sender_config
+      ${catkin_LIBRARIES}
     )
   endif()
 
