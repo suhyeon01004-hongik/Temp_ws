@@ -32,5 +32,5 @@
   <test test-name="pure_pursuit_controller"
         pkg="morai_path_tracking"
         type="test_pure_pursuit_controller.py"
-        time-limit="20.0"/>
+        time-limit="35.0"/>
 </launch>

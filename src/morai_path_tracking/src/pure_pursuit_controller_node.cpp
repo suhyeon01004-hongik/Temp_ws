@@ -159,8 +159,10 @@ ControllerConfig loadConfig(const ros::NodeHandle& private_node) {
   requirePositive("path_timeout_sec", config.path_timeout_sec);
   requirePositive("odometry_timeout_sec", config.odometry_timeout_sec);
   requireNonNegative("maximum_input_skew_sec", config.maximum_input_skew_sec);
-  if (config.safe_brake_command < 0.0 || config.safe_brake_command > 1.0) {
-    throw std::invalid_argument("safe_brake_command must be in [0, 1]");
+  if (!std::isfinite(config.safe_brake_command) ||
+      config.safe_brake_command < 0.0 || config.safe_brake_command > 1.0) {
+    throw std::invalid_argument(
+        "safe_brake_command must be finite and in [0, 1]");
   }
   requirePositive("maximum_steering_angle_deg", maximum_steering_angle_deg);
   if (maximum_steering_angle_deg >= 90.0) {
@@ -217,15 +219,15 @@ class PurePursuitControllerNode {
  private:
   void onPath(const nav_msgs::Path::ConstPtr& message) {
     latest_path_ = message;
-    path_receipt_time_ = ros::WallTime::now();
+    path_receipt_time_ = ros::SteadyTime::now();
   }
 
   void onOdometry(const nav_msgs::Odometry::ConstPtr& message) {
     latest_odometry_ = message;
-    odometry_receipt_time_ = ros::WallTime::now();
+    odometry_receipt_time_ = ros::SteadyTime::now();
   }
 
-  bool validInputs(const ros::WallTime& now, std::vector<Point2d>* path,
+  bool validInputs(const ros::SteadyTime& now, std::vector<Point2d>* path,
                    double* speed_mps) const {
     if (!latest_path_ || !latest_odometry_) {
       return false;
@@ -300,36 +302,44 @@ class PurePursuitControllerNode {
     return true;
   }
 
-  void publishSafe() {
-    pid_.reset();
-    morai_udp_bridge::ActuatorCommand output;
-    output.header.stamp = ros::Time::now();
-    output.accel = 0.0F;
-    output.brake = static_cast<float>(config_.safe_brake_command);
-    output.steering_angle_rad = 0.0F;
-    publisher_.publish(output);
+  void publishSafe() noexcept {
+    try {
+      pid_.reset();
+      morai_udp_bridge::ActuatorCommand output;
+      output.header.stamp = ros::Time::now();
+      output.accel = 0.0F;
+      output.brake = static_cast<float>(config_.safe_brake_command);
+      output.steering_angle_rad = 0.0F;
+      publisher_.publish(output);
+    } catch (const std::exception& error) {
+      ROS_ERROR_THROTTLE(1.0, "failed to publish safe controller command: %s",
+                         error.what());
+    } catch (...) {
+      ROS_ERROR_THROTTLE(1.0,
+                         "failed to publish safe controller command: unknown exception");
+    }
   }
 
   void onTimer(const ros::WallTimerEvent&) {
-    const ros::WallTime now = ros::WallTime::now();
-    const double dt_sec = has_last_timer_time_
-                              ? (now - last_timer_time_).toSec()
-                              : std::numeric_limits<double>::quiet_NaN();
-    last_timer_time_ = now;
-    has_last_timer_time_ = true;
-    if (!std::isfinite(dt_sec) || dt_sec <= 0.0) {
-      publishSafe();
-      return;
-    }
-
-    std::vector<Point2d> vehicle_path;
-    double speed_mps = 0.0;
-    if (!validInputs(now, &vehicle_path, &speed_mps)) {
-      publishSafe();
-      return;
-    }
-
     try {
+      const ros::SteadyTime now = ros::SteadyTime::now();
+      const double dt_sec = has_last_timer_time_
+                                ? (now - last_timer_time_).toSec()
+                                : std::numeric_limits<double>::quiet_NaN();
+      last_timer_time_ = now;
+      has_last_timer_time_ = true;
+      if (!std::isfinite(dt_sec) || dt_sec <= 0.0) {
+        publishSafe();
+        return;
+      }
+
+      std::vector<Point2d> vehicle_path;
+      double speed_mps = 0.0;
+      if (!validInputs(now, &vehicle_path, &speed_mps)) {
+        publishSafe();
+        return;
+      }
+
       const PurePursuitResult lateral =
           computePurePursuit(vehicle_path, speed_mps, config_.pure_pursuit);
       if (!lateral.valid || !std::isfinite(lateral.steering_angle_rad)) {
@@ -356,6 +366,9 @@ class PurePursuitControllerNode {
     } catch (const std::exception& error) {
       ROS_WARN_THROTTLE(1.0, "controller cycle rejected: %s", error.what());
       publishSafe();
+    } catch (...) {
+      ROS_WARN_THROTTLE(1.0, "controller cycle rejected: unknown exception");
+      publishSafe();
     }
   }
 
@@ -369,9 +382,9 @@ class PurePursuitControllerNode {
   ros::WallTimer timer_;
   nav_msgs::Path::ConstPtr latest_path_;
   nav_msgs::Odometry::ConstPtr latest_odometry_;
-  ros::WallTime path_receipt_time_;
-  ros::WallTime odometry_receipt_time_;
-  ros::WallTime last_timer_time_;
+  ros::SteadyTime path_receipt_time_;
+  ros::SteadyTime odometry_receipt_time_;
+  ros::SteadyTime last_timer_time_;
   bool has_last_timer_time_{false};
 };
 
