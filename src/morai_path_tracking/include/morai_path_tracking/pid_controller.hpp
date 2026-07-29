@@ -7,6 +7,7 @@ struct PidConfig {
   double ki{0.08};
   double kd{0.02};
   double integral_limit{2.0};
+  double integral_unwind_rate_per_sec{0.5};
   double error_deadband_mps{0.05};
   double maximum_accel{0.40};
   double maximum_brake{0.60};

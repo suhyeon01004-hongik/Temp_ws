@@ -15,6 +15,13 @@ void requireFiniteNonNegative(const char* name, double value) {
   }
 }
 
+void requireFinitePositive(const char* name, double value) {
+  if (!std::isfinite(value) || value <= 0.0) {
+    throw std::invalid_argument(std::string(name) +
+                                " must be finite and positive");
+  }
+}
+
 double clamp(double value, double lower, double upper) {
   return std::max(lower, std::min(upper, value));
 }
@@ -26,6 +33,8 @@ LongitudinalPid::LongitudinalPid(const PidConfig& config) : config_(config) {
   requireFiniteNonNegative("ki", config_.ki);
   requireFiniteNonNegative("kd", config_.kd);
   requireFiniteNonNegative("integral_limit", config_.integral_limit);
+  requireFinitePositive("integral_unwind_rate_per_sec",
+                        config_.integral_unwind_rate_per_sec);
   requireFiniteNonNegative("error_deadband_mps", config_.error_deadband_mps);
   requireFiniteNonNegative("maximum_accel", config_.maximum_accel);
   requireFiniteNonNegative("maximum_brake", config_.maximum_brake);
@@ -41,23 +50,31 @@ LongitudinalCommand LongitudinalPid::update(double target_speed_mps,
   }
 
   const double error = target_speed_mps - measured_speed_mps;
-  const double effective_error =
-      std::abs(error) <= config_.error_deadband_mps ? 0.0 : error;
-  const double derivative = has_previous_measurement_
+  const bool inside_deadband =
+      std::abs(error) <= config_.error_deadband_mps;
+  const double derivative = !inside_deadband && has_previous_measurement_
                                 ? (measured_speed_mps - previous_measurement_mps_) /
                                       dt_sec
                                 : 0.0;
-  const double candidate_integral =
-      clamp(integral_ + effective_error * dt_sec, -config_.integral_limit,
-            config_.integral_limit);
+  const double candidate_integral = inside_deadband
+                                        ? std::copysign(
+                                              std::max(0.0, std::abs(integral_) -
+                                                                config_.integral_unwind_rate_per_sec *
+                                                                    dt_sec),
+                                              integral_)
+                                        : clamp(integral_ + error * dt_sec,
+                                                -config_.integral_limit,
+                                                config_.integral_limit);
   const double candidate_output =
-      config_.kp * effective_error + config_.ki * candidate_integral -
+      config_.kp * (inside_deadband ? 0.0 : error) +
+      config_.ki * candidate_integral -
       config_.kd * derivative;
 
   const bool saturated_high = candidate_output > config_.maximum_accel;
   const bool saturated_low = candidate_output < -config_.maximum_brake;
-  if (!((saturated_high && effective_error > 0.0) ||
-        (saturated_low && effective_error < 0.0))) {
+  if (inside_deadband ||
+      !((saturated_high && error > 0.0) ||
+        (saturated_low && error < 0.0))) {
     integral_ = candidate_integral;
   }
 

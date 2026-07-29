@@ -54,6 +54,57 @@ TEST(LongitudinalPid, AppliesDeadband) {
   EXPECT_DOUBLE_EQ(0.0, command.brake);
 }
 
+TEST(LongitudinalPid, SuppressesDerivativeInsideDeadband) {
+  PidConfig config;
+  config.kp = 0.0;
+  config.ki = 0.0;
+  config.kd = 1.0;
+  config.error_deadband_mps = 0.05;
+  config.maximum_accel = 20.0;
+  config.maximum_brake = 20.0;
+  LongitudinalPid pid(config);
+  pid.update(1.0, 0.0, 0.1);
+
+  const auto command = pid.update(1.0, 0.96, 0.1);
+
+  EXPECT_DOUBLE_EQ(0.0, command.accel);
+  EXPECT_DOUBLE_EQ(0.0, command.brake);
+}
+
+TEST(LongitudinalPid, UnwindsIntegralTowardZeroInsideDeadband) {
+  PidConfig config;
+  config.kp = 0.0;
+  config.ki = 1.0;
+  config.kd = 0.0;
+  config.integral_unwind_rate_per_sec = 0.5;
+  config.maximum_accel = 2.0;
+  LongitudinalPid pid(config);
+  EXPECT_DOUBLE_EQ(1.0, pid.update(1.0, 0.0, 1.0).accel);
+
+  EXPECT_DOUBLE_EQ(0.75, pid.update(1.0, 0.98, 0.5).accel);
+  EXPECT_DOUBLE_EQ(0.50, pid.update(1.0, 0.98, 0.5).accel);
+  EXPECT_DOUBLE_EQ(0.25, pid.update(1.0, 0.98, 0.5).accel);
+  EXPECT_DOUBLE_EQ(0.00, pid.update(1.0, 0.98, 0.5).accel);
+}
+
+TEST(LongitudinalPid, UsesLastDeadbandMeasurementWhenLeavingDeadband) {
+  PidConfig config;
+  config.kp = 0.0;
+  config.ki = 0.0;
+  config.kd = 1.0;
+  config.error_deadband_mps = 0.05;
+  config.maximum_accel = 10.0;
+  config.maximum_brake = 10.0;
+  LongitudinalPid pid(config);
+  pid.update(1.0, 0.0, 1.0);
+  pid.update(1.0, 0.96, 0.1);
+
+  const auto command = pid.update(1.0, 0.8, 0.1);
+
+  EXPECT_DOUBLE_EQ(1.6, command.accel);
+  EXPECT_DOUBLE_EQ(0.0, command.brake);
+}
+
 TEST(LongitudinalPid, UsesDerivativeOfMeasurement) {
   PidConfig config;
   config.kp = 0.0;
@@ -113,6 +164,22 @@ TEST(LongitudinalPid, RejectsInvalidUpdateInputs) {
                std::invalid_argument);
 }
 
+TEST(LongitudinalPid, InvalidUpdateDoesNotMutateIntegralState) {
+  PidConfig config;
+  config.kp = 0.0;
+  config.ki = 1.0;
+  config.kd = 0.0;
+  config.integral_limit = 10.0;
+  config.maximum_accel = 10.0;
+  LongitudinalPid pid(config);
+  EXPECT_DOUBLE_EQ(1.0, pid.update(1.0, 0.0, 1.0).accel);
+
+  EXPECT_THROW(pid.update(1.0, std::numeric_limits<double>::infinity(), 0.1),
+               std::invalid_argument);
+
+  EXPECT_DOUBLE_EQ(2.0, pid.update(1.0, 0.0, 1.0).accel);
+}
+
 TEST(LongitudinalPid, RejectsInvalidConfiguration) {
   PidConfig config;
   config.kp = -0.1;
@@ -128,6 +195,19 @@ TEST(LongitudinalPid, RejectsInvalidConfiguration) {
 
   config = PidConfig{};
   config.maximum_brake = -0.1;
+  EXPECT_THROW({ LongitudinalPid pid(config); }, std::invalid_argument);
+
+  config = PidConfig{};
+  config.integral_unwind_rate_per_sec = 0.0;
+  EXPECT_THROW({ LongitudinalPid pid(config); }, std::invalid_argument);
+
+  config = PidConfig{};
+  config.integral_unwind_rate_per_sec = -0.1;
+  EXPECT_THROW({ LongitudinalPid pid(config); }, std::invalid_argument);
+
+  config = PidConfig{};
+  config.integral_unwind_rate_per_sec =
+      std::numeric_limits<double>::infinity();
   EXPECT_THROW({ LongitudinalPid pid(config); }, std::invalid_argument);
 }
 
