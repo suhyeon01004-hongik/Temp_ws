@@ -29,8 +29,14 @@ class MoraiSimResetNode {
     private_node_.param(
         "key_hold", options.key_hold_seconds, options.key_hold_seconds);
     private_node_.param(
+        "reset_key_hold", options.reset_key_hold_seconds,
+        options.reset_key_hold_seconds);
+    private_node_.param(
         "mode_settle", options.mode_settle_seconds,
         options.mode_settle_seconds);
+    private_node_.param(
+        "builtin_settle", options.builtin_settle_seconds,
+        options.builtin_settle_seconds);
     private_node_.param(
         "reset_settle", options.reset_settle_seconds,
         options.reset_settle_seconds);

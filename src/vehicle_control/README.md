@@ -83,11 +83,10 @@ roslaunch vehicle_control cyvox_morai.launch
 | Y | P(주차) |
 | Home/Guide | MORAI 차량 초기 위치로 재설정 |
 
-기어는 실제 속도가 `0.5 m/s` 이하일 때만 바뀌며 브레이크 입력은 요구하지
-않는다. `/vehicle/status` 속도를 우선 사용하고, 상태 UDP가 없으면 기존
-`/localization/odometry` 속도를 자동으로 사용한다. 두 속도 토픽이 모두 없거나
-0.5초 이상 끊기면 변경을 거부한다. 주행 중 거부된 버튼은 정차 후 다시 눌러야
-한다.
+기어는 RT를 놓고 LT 브레이크를 50% 이상 밟은 상태에서만 바뀐다. 속도 정보가
+있으면 실제 속도가 `0.5 m/s` 이하인지도 함께 확인한다. `/vehicle/status`와
+`/localization/odometry`가 모두 없거나 끊겨도 브레이크 인터록으로 기어를
+변경할 수 있다. 거부된 버튼은 놓았다가 다시 눌러야 한다.
 
 조이스틱 명령이 0.25초 이상 끊기면 가속 0, 조향 0, 브레이크 0.5를 전송하며
 마지막 기어는 유지한다.
@@ -110,7 +109,7 @@ xdotool search --onlyvisible --name Simulator
 
 초기화 기능은 X11의 MORAI `Simulator` 창을 잠시 `Manual-Keyboard`로 바꾼 뒤
 `i`를 누르고 다시 `AV-ExternalCtrl`로 복귀시키는 방식이다. 이 과정에서 외부
-제어 UDP는 3.5초 동안 중지된다. `xdotool`이 없거나 Wayland 세션이면 차량 조작
+제어 UDP는 0.9초 동안 중지된다. `xdotool`이 없거나 Wayland 세션이면 차량 조작
 노드는 계속 동작하지만 초기화만 실패한다.
 
 ## 주요 토픽
@@ -130,12 +129,18 @@ xdotool search --onlyvisible --name Simulator
 | --- | ---: | --- |
 | `steering_axis` | `0` | 왼쪽 스틱 X축 |
 | `brake_axis` / `accel_axis` | `2` / `5` | LT / RT축 |
+| `steering_deadzone` | `0.05` | 중앙 조향 무시 구간 |
+| `steering_scale` | `1.0` | 최대 조향 출력 비율 |
+| `steering_expo` | `0.7` | 중앙 조향을 완만하게 만드는 곡선 강도 |
 | `drive_button` | `0` | D 선택(A) |
 | `neutral_button` | `1` | N 선택(B) |
 | `reverse_button` | `2` | R 선택(X) |
 | `park_button` | `3` | P 선택(Y) |
 | `reset_button` | `8` | 초기화(Home/Guide) |
 | `maximum_gear_change_speed_mps` | `0.5` | 기어 변경 허용 속도 |
+| `minimum_brake_for_gear_change` | `0.5` | 기어 변경에 필요한 최소 브레이크 |
+| `maximum_accel_for_gear_change` | `0.05` | 기어 변경에 허용되는 최대 가속 입력 |
+| `allow_brake_interlock_without_status` | `true` | 속도 정보가 없어도 브레이크 인터록 허용 |
 | `status_timeout` | `0.5` | MORAI 상태 유효 시간 |
 | `odometry_topic` | `/localization/odometry` | 상태 UDP가 없을 때 사용할 속도 |
 | `odometry_timeout` | `0.5` | odometry 속도 유효 시간 |
@@ -143,9 +148,14 @@ xdotool search --onlyvisible --name Simulator
 | `listen_port` | `9094` | MORAI 상태 수신 포트 |
 | `command_timeout` | `0.25` | 조이스틱 연결 끊김 판단 |
 | `safe_brake` | `0.5` | 연결 끊김 시 브레이크 |
-| `reset_pause_duration` | `3.5` | 초기화 중 제어 UDP 정지 시간 |
+| `reset_pause_duration` | `0.9` | 초기화 중 제어 UDP 정지 시간 |
 | `window_name` / `reset_key` | `Simulator` / `i` | 초기화 대상 창과 키 |
 | `control_toggle_key` | `q` | MORAI 제어 모드 전환 키 |
+| `key_hold` | `0.01` | MORAI 모드 전환(`q`) 입력 유지 시간 |
+| `reset_key_hold` | `0.12` | MORAI 초기화(`i`) 입력 유지 시간 |
+| `mode_settle` | `0.25` | 리셋 전 Manual 모드 안정화 시간 |
+| `builtin_settle` | `0.0001` | 리셋 후 Built-In 모드 체류 시간 |
+| `reset_settle` | `0.1` | 초기화 입력 후 모드 복귀 전 대기시간 |
 
 ## 코드 책임
 

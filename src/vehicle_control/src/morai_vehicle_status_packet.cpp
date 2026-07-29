@@ -58,7 +58,7 @@ bool decodeMoraiVehicleStatus(const std::uint8_t* packet,
     control_mode_offset = 27U;
     gear_offset = 28U;
     speed_offset = 29U;
-  } else if (data_length == 216U) {
+  } else if (data_length >= 216U) {
     control_mode_offset = 35U;
     gear_offset = 36U;
     speed_offset = 37U;

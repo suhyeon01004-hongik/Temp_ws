@@ -26,7 +26,7 @@ class MoraiUdpSenderNode {
     double command_timeout = 0.25;
     double safe_brake = 0.5;
     std::string reset_topic;
-    double reset_pause_duration = 3.5;
+    double reset_pause_duration = 0.9;
     private_node_.param<std::string>(
         "command_topic", command_topic, "/vehicle/manual_command");
     private_node_.param<std::string>(
@@ -38,7 +38,7 @@ class MoraiUdpSenderNode {
     private_node_.param<std::string>(
         "reset_topic", reset_topic, "/vehicle/reset_request");
     private_node_.param(
-        "reset_pause_duration", reset_pause_duration, 3.5);
+        "reset_pause_duration", reset_pause_duration, 0.9);
 
     if (destination_port < 1 || destination_port > 65535) {
       throw std::invalid_argument("destination_port must be in 1..65535");

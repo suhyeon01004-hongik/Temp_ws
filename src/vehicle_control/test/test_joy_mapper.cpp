@@ -32,13 +32,13 @@ TEST(JoyMapper, FullyPressedTriggersProduceFullPedalCommands) {
   EXPECT_FLOAT_EQ(1.0F, output.brake);
 }
 
-TEST(JoyMapper, SteeringDeadzoneIsRemovedAndRangeIsRescaled) {
+TEST(JoyMapper, SteeringCurveReducesMidrangeSensitivity) {
   const JoyMapper mapper(JoyMappingConfig{});
   const std::vector<float> axes{0.525F, 0.0F, -1.0F, 0.0F, 0.0F, -1.0F};
   ControlCommand output;
 
   ASSERT_TRUE(mapper.map(axes, &output, nullptr));
-  EXPECT_NEAR(0.5F, output.steering, 1.0e-6F);
+  EXPECT_NEAR(0.2375F, output.steering, 1.0e-6F);
 }
 
 TEST(JoyMapper, SteeringInsideDeadzoneIsCentered) {
@@ -106,6 +106,20 @@ TEST(JoyMapper, NegativeAxisIndexIsRejected) {
 TEST(JoyMapper, InvalidSteeringDeadzoneIsRejected) {
   JoyMappingConfig config;
   config.steering_deadzone = 1.0F;
+
+  EXPECT_THROW({ const JoyMapper mapper(config); }, std::invalid_argument);
+}
+
+TEST(JoyMapper, InvalidSteeringScaleIsRejected) {
+  JoyMappingConfig config;
+  config.steering_scale = 1.1F;
+
+  EXPECT_THROW({ const JoyMapper mapper(config); }, std::invalid_argument);
+}
+
+TEST(JoyMapper, InvalidSteeringExpoIsRejected) {
+  JoyMappingConfig config;
+  config.steering_expo = -0.1F;
 
   EXPECT_THROW({ const JoyMapper mapper(config); }, std::invalid_argument);
 }

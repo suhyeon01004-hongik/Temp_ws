@@ -111,7 +111,7 @@ class CyvoxMappingTest(unittest.TestCase):
         self._map_input(1.0, 1.0)
         buttons = [0] * 11
         buttons[button_index] = 1
-        return self._map_input(1.0, 1.0, buttons)
+        return self._map_input(-1.0, 1.0, buttons)
 
     def test_initial_trigger_state_is_loaded_from_device(self):
         self.assertTrue(

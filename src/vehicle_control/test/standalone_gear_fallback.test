@@ -1,0 +1,24 @@
+<launch>
+  <group ns="standalone_gear_fallback_test">
+    <rosparam command="load"
+              file="$(find vehicle_control)/config/cyvox_mx.yaml"/>
+
+    <node pkg="vehicle_control"
+          type="joystick_teleop_node"
+          name="joystick_teleop_node"
+          output="screen">
+      <param name="joy_topic" value="/test/standalone_gear/joy"/>
+      <param name="command_topic" value="/test/standalone_gear/command"/>
+      <param name="status_topic" value="/test/standalone_gear/no_status"/>
+      <param name="odometry_topic" value="/test/standalone_gear/no_odometry"/>
+      <param name="allow_brake_interlock_without_status" value="true"/>
+      <param name="minimum_brake_for_gear_change" value="0.5"/>
+      <param name="maximum_accel_for_gear_change" value="0.05"/>
+    </node>
+  </group>
+
+  <test test-name="standalone_gear_fallback"
+        pkg="vehicle_control"
+        type="test_standalone_gear_fallback.py"
+        time-limit="10"/>
+</launch>

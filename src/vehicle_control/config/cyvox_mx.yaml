@@ -15,11 +15,16 @@ joystick_teleop_node:
   brake_inverted: true
   accel_inverted: true
   steering_deadzone: 0.05
+  steering_scale: 1.0
+  steering_expo: 0.7
   status_topic: /vehicle/status
   status_timeout: 0.5
   odometry_topic: /localization/odometry
   odometry_timeout: 0.5
   maximum_gear_change_speed_mps: 0.5
+  allow_brake_interlock_without_status: true
+  minimum_brake_for_gear_change: 0.5
+  maximum_accel_for_gear_change: 0.05
   initial_gear: 4
   drive_button: 0
   neutral_button: 1
@@ -40,9 +45,11 @@ morai_sim_reset_node:
   reset_key: i
   control_toggle_key: q
   focus_delay: 0.2
-  key_hold: 0.12
+  key_hold: 0.01
+  reset_key_hold: 0.12
   mode_settle: 0.25
-  reset_settle: 1.5
+  builtin_settle: 0.0001
+  reset_settle: 0.1
 
 morai_udp_sender_node:
   command_topic: /vehicle/manual_command
@@ -52,4 +59,4 @@ morai_udp_sender_node:
   command_timeout: 0.25
   safe_brake: 0.5
   reset_topic: /vehicle/reset_request
-  reset_pause_duration: 3.5
+  reset_pause_duration: 0.9

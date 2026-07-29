@@ -20,7 +20,8 @@ float pedalValue(float axis, bool inverted) {
                   : (bounded + 1.0F) * 0.5F;
 }
 
-float steeringValue(float axis, bool inverted, float deadzone) {
+float steeringValue(float axis, bool inverted, float deadzone, float scale,
+                    float expo) {
   if (!std::isfinite(axis)) {
     return 0.0F;
   }
@@ -32,8 +33,11 @@ float steeringValue(float axis, bool inverted, float deadzone) {
   if (magnitude <= deadzone) {
     return 0.0F;
   }
-  const float scaled = (magnitude - deadzone) / (1.0F - deadzone);
-  return std::copysign(scaled, bounded);
+  const float normalized = (magnitude - deadzone) / (1.0F - deadzone);
+  const float curved =
+      (1.0F - expo) * normalized +
+      expo * normalized * normalized * normalized;
+  return std::copysign(curved * scale, bounded);
 }
 
 bool reject(std::string* error, const std::string& message) {
@@ -55,6 +59,16 @@ JoyMapper::JoyMapper(JoyMappingConfig config) : config_(config) {
       config_.steering_deadzone >= 1.0F) {
     throw std::invalid_argument("steering deadzone must be in [0, 1)");
   }
+  if (!std::isfinite(config_.steering_scale) ||
+      config_.steering_scale <= 0.0F ||
+      config_.steering_scale > 1.0F) {
+    throw std::invalid_argument("steering scale must be in (0, 1]");
+  }
+  if (!std::isfinite(config_.steering_expo) ||
+      config_.steering_expo < 0.0F ||
+      config_.steering_expo > 1.0F) {
+    throw std::invalid_argument("steering expo must be in [0, 1]");
+  }
 }
 
 bool JoyMapper::map(const std::vector<float>& axes, ControlCommand* output,
@@ -71,7 +85,8 @@ bool JoyMapper::map(const std::vector<float>& axes, ControlCommand* output,
 
   output->steering =
       steeringValue(axes[static_cast<std::size_t>(config_.steering_axis)],
-                    config_.steering_inverted, config_.steering_deadzone);
+                    config_.steering_inverted, config_.steering_deadzone,
+                    config_.steering_scale, config_.steering_expo);
   output->brake =
       pedalValue(axes[static_cast<std::size_t>(config_.brake_axis)],
                  config_.brake_inverted);

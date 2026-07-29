@@ -16,14 +16,14 @@ TEST(ResetCommandTest, BuildsXdotoolCommandWithoutUsingAShell) {
       "xdotool",        "search",         "--onlyvisible", "--name",
       "Simulator",      "windowactivate", "--sync",        "sleep",
       "0.200",          "keydown",        "--clearmodifiers", "q",
-      "sleep",          "0.120",          "keyup",         "--clearmodifiers",
-      "q",              "sleep",          "0.250",         "keydown",
+      "sleep",          "0.010",          "keyup",         "--clearmodifiers",
+      "q",              "sleep",          "0.2500",        "keydown",
       "--clearmodifiers", "i",            "sleep",         "0.120",
       "keyup",          "--clearmodifiers", "i",           "sleep",
-      "1.500",          "keydown",        "--clearmodifiers", "q",
-      "sleep",          "0.120",          "keyup",         "--clearmodifiers",
-      "q",              "sleep",          "0.250",         "keydown",
-      "--clearmodifiers", "q",            "sleep",         "0.120",
+      "0.100",          "keydown",        "--clearmodifiers", "q",
+      "sleep",          "0.010",          "keyup",         "--clearmodifiers",
+      "q",              "sleep",          "0.0001",        "keydown",
+      "--clearmodifiers", "q",            "sleep",         "0.010",
       "keyup",          "--clearmodifiers", "q"};
   EXPECT_EQ(command, expected);
 }
@@ -49,6 +49,18 @@ TEST(ResetCommandTest, RejectsEmptyControlToggleKey) {
 TEST(ResetCommandTest, RejectsNegativeTiming) {
   MoraiResetOptions options;
   options.reset_settle_seconds = -0.1;
+  EXPECT_THROW(buildMoraiResetCommand(options), std::invalid_argument);
+}
+
+TEST(ResetCommandTest, RejectsNegativeBuiltinSettle) {
+  MoraiResetOptions options;
+  options.builtin_settle_seconds = -0.1;
+  EXPECT_THROW(buildMoraiResetCommand(options), std::invalid_argument);
+}
+
+TEST(ResetCommandTest, RejectsNegativeResetKeyHold) {
+  MoraiResetOptions options;
+  options.reset_key_hold_seconds = -0.1;
   EXPECT_THROW(buildMoraiResetCommand(options), std::invalid_argument);
 }
 

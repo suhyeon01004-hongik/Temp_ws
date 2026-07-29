@@ -28,8 +28,14 @@ JoyMappingConfig loadMappingConfig(ros::NodeHandle* private_node) {
   private_node->param("brake_inverted", config.brake_inverted, false);
   private_node->param("accel_inverted", config.accel_inverted, false);
   double deadzone = 0.05;
+  double steering_scale = 1.0;
+  double steering_expo = 0.7;
   private_node->param("steering_deadzone", deadzone, 0.05);
+  private_node->param("steering_scale", steering_scale, 1.0);
+  private_node->param("steering_expo", steering_expo, 0.7);
   config.steering_deadzone = static_cast<float>(deadzone);
+  config.steering_scale = static_cast<float>(steering_scale);
+  config.steering_expo = static_cast<float>(steering_expo);
   return config;
 }
 
@@ -88,6 +94,27 @@ class JoystickTeleopNode {
     private_node_.param("odometry_timeout", odometry_timeout_, 0.5);
     if (!std::isfinite(odometry_timeout_) || odometry_timeout_ <= 0.0) {
       throw std::invalid_argument("odometry_timeout must be positive");
+    }
+    private_node_.param(
+        "allow_brake_interlock_without_status",
+        allow_brake_interlock_without_status_, true);
+    private_node_.param(
+        "minimum_brake_for_gear_change",
+        minimum_brake_for_gear_change_, 0.5);
+    private_node_.param(
+        "maximum_accel_for_gear_change",
+        maximum_accel_for_gear_change_, 0.05);
+    if (!std::isfinite(minimum_brake_for_gear_change_) ||
+        minimum_brake_for_gear_change_ < 0.0 ||
+        minimum_brake_for_gear_change_ > 1.0) {
+      throw std::invalid_argument(
+          "minimum_brake_for_gear_change must be in 0..1");
+    }
+    if (!std::isfinite(maximum_accel_for_gear_change_) ||
+        maximum_accel_for_gear_change_ < 0.0 ||
+        maximum_accel_for_gear_change_ > 1.0) {
+      throw std::invalid_argument(
+          "maximum_accel_for_gear_change must be in 0..1");
     }
     int reset_button = 8;
     private_node_.param("reset_button", reset_button, 8);
@@ -155,26 +182,37 @@ class JoystickTeleopNode {
     const bool odometry_is_fresh =
         has_valid_odometry_ && odometry_age >= 0.0 &&
         odometry_age <= odometry_timeout_;
-    const bool speed_valid = status_is_fresh || odometry_is_fresh;
+    const bool brake_interlock_is_satisfied =
+        command.brake >= minimum_brake_for_gear_change_ &&
+        command.accel <= maximum_accel_for_gear_change_;
+    const bool speed_is_available =
+        status_is_fresh || odometry_is_fresh;
+    const bool speed_valid =
+        brake_interlock_is_satisfied &&
+        (speed_is_available || allow_brake_interlock_without_status_);
     const double gear_change_speed =
-        status_is_fresh ? speed_mps_ : odometry_speed_mps_;
+        status_is_fresh
+            ? speed_mps_
+            : (odometry_is_fresh ? odometry_speed_mps_ : 0.0);
     const GearSelectionResult gear_result =
         gear_selector_->update(
             joy->buttons, speed_valid, gear_change_speed);
     switch (gear_result.status) {
       case GearSelectionStatus::kChanged:
-        if (!status_is_fresh && odometry_is_fresh) {
-          ROS_INFO("CYVOX gear selected using odometry speed: %s",
-                   gearName(gear_result.gear));
-        } else {
-          ROS_INFO("CYVOX gear selected: %s", gearName(gear_result.gear));
-        }
+        ROS_INFO("CYVOX gear selected with brake interlock: %s",
+                 gearName(gear_result.gear));
         break;
       case GearSelectionStatus::kSpeedUnavailable:
-        ROS_WARN_THROTTLE(
-            1.0,
-            "gear change rejected: MORAI status and localization odometry "
-            "speeds are unavailable");
+        if (!brake_interlock_is_satisfied) {
+          ROS_WARN_THROTTLE(
+              1.0,
+              "gear change rejected: release RT and hold LT to change gear");
+        } else {
+          ROS_WARN_THROTTLE(
+              1.0,
+              "gear change rejected: MORAI status and localization odometry "
+              "speeds are unavailable");
+        }
         break;
       case GearSelectionStatus::kTooFast:
         ROS_WARN_THROTTLE(
@@ -209,6 +247,9 @@ class JoystickTeleopNode {
   std::unique_ptr<ButtonEdge> reset_button_edge_;
   double status_timeout_{0.5};
   double odometry_timeout_{0.5};
+  bool allow_brake_interlock_without_status_{true};
+  double minimum_brake_for_gear_change_{0.5};
+  double maximum_accel_for_gear_change_{0.05};
   double speed_mps_{0.0};
   double odometry_speed_mps_{0.0};
   bool has_valid_status_{false};

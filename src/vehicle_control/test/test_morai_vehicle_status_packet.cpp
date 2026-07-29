@@ -64,6 +64,20 @@ TEST(MoraiVehicleStatusPacket, DecodesTimestampedPacket) {
   EXPECT_FLOAT_EQ(status.signed_speed_kph, -12.5F);
 }
 
+TEST(MoraiVehicleStatusPacket, DecodesTimestampedPacketWithAppendedFields) {
+  const std::vector<std::uint8_t> packet =
+      makePacket(224, 35U, 36U, 37U, 7.25F);
+  MoraiVehicleStatus status;
+  std::string error;
+
+  ASSERT_TRUE(
+      decodeMoraiVehicleStatus(packet.data(), packet.size(), &status, &error))
+      << error;
+  EXPECT_EQ(status.control_mode, 2);
+  EXPECT_EQ(status.gear, 4);
+  EXPECT_FLOAT_EQ(status.signed_speed_kph, 7.25F);
+}
+
 TEST(MoraiVehicleStatusPacket, DecodesLegacyPacket) {
   const std::vector<std::uint8_t> packet =
       makePacket(132, 27U, 28U, 29U, 3.25F);

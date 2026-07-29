@@ -15,6 +15,8 @@ struct JoyMappingConfig {
   bool brake_inverted{false};
   bool accel_inverted{false};
   float steering_deadzone{0.05F};
+  float steering_scale{1.0F};
+  float steering_expo{0.7F};
 };
 
 class JoyMapper {

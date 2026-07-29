@@ -17,9 +17,9 @@
 namespace vehicle_control {
 namespace {
 
-std::string formatSeconds(const double seconds) {
+std::string formatSeconds(const double seconds, const int precision = 3) {
   std::ostringstream stream;
-  stream << std::fixed << std::setprecision(3) << seconds;
+  stream << std::fixed << std::setprecision(precision) << seconds;
   return stream.str();
 }
 
@@ -53,13 +53,21 @@ std::vector<std::string> buildMoraiResetCommand(
   }
   validateTiming(options.focus_delay_seconds, "focus_delay_seconds");
   validateTiming(options.key_hold_seconds, "key_hold_seconds");
+  validateTiming(
+      options.reset_key_hold_seconds, "reset_key_hold_seconds");
   validateTiming(options.mode_settle_seconds, "mode_settle_seconds");
+  validateTiming(
+      options.builtin_settle_seconds, "builtin_settle_seconds");
   validateTiming(options.reset_settle_seconds, "reset_settle_seconds");
 
   const std::string key_hold =
       formatSeconds(options.key_hold_seconds);
+  const std::string reset_key_hold =
+      formatSeconds(options.reset_key_hold_seconds);
   const std::string mode_settle =
-      formatSeconds(options.mode_settle_seconds);
+      formatSeconds(options.mode_settle_seconds, 4);
+  const std::string builtin_settle =
+      formatSeconds(options.builtin_settle_seconds, 4);
   std::vector<std::string> command{
       "xdotool",        "search", "--onlyvisible", "--name",
       options.window_name, "windowactivate", "--sync", "sleep",
@@ -69,11 +77,11 @@ std::vector<std::string> buildMoraiResetCommand(
   // Manual-Keyboard, reset, then cycle back through Built-In to ExternalCtrl.
   appendHeldKey(&command, options.control_toggle_key, key_hold);
   command.insert(command.end(), {"sleep", mode_settle});
-  appendHeldKey(&command, options.reset_key, key_hold);
+  appendHeldKey(&command, options.reset_key, reset_key_hold);
   command.insert(command.end(),
                  {"sleep", formatSeconds(options.reset_settle_seconds)});
   appendHeldKey(&command, options.control_toggle_key, key_hold);
-  command.insert(command.end(), {"sleep", mode_settle});
+  command.insert(command.end(), {"sleep", builtin_settle});
   appendHeldKey(&command, options.control_toggle_key, key_hold);
   return command;
 }
