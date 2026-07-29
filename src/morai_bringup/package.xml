@@ -12,6 +12,7 @@
   <exec_depend>ioniq5_description</exec_depend>
   <exec_depend>morai_localization</exec_depend>
   <exec_depend>morai_path_manager</exec_depend>
+  <exec_depend>morai_path_tracking</exec_depend>
   <exec_depend>morai_udp_bridge</exec_depend>
   <exec_depend>morai_visualization</exec_depend>
   <exec_depend>nodelet</exec_depend>

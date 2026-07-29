@@ -4,7 +4,8 @@ MORAI SIM의 센서 데이터를 ROS1으로 받아 차량 위치와 경로를 �
 검증하기 위한 Team Stier 워크스페이스다.
 
 현재 구현 범위는 **센서 수신, 차량·센서 TF, GPS+IMU localization,
-전역·지역경로 발행, RViz 시각화, 조이스틱 수동 제어**다.
+전역·지역경로 발행, Pure Pursuit/PID 자율 경로 추종, RViz 시각화, 조이스틱
+수동 제어**다.
 
 ## 현재 구성
 
@@ -28,10 +29,16 @@ flowchart LR
 
     UDP --> RAW["/image/*<br/>/sensors/gps/fix<br/>/sensors/imu/data"]
     RAW --> LOC["morai_localization"]
-    LOC --> POSE["/localization/pose<br/>/localization/odometry"]
+    LOC --> POSE["/localization/pose"]
+    LOC --> ODOM["/localization/odometry<br/>velocity"]
     POSE --> PATH["morai_path_manager"]
     ROUTE["전역경로 파일"] --> PATH
     PATH --> PATH_TOPIC["/global_path<br/>/local_path"]
+    ODOM --> TRACK["morai_path_tracking<br/>Pure Pursuit/PID"]
+    PATH_TOPIC --> TRACK
+    TRACK --> CMD["/control/actuator_command"]
+    CMD --> AUTO_UDP["morai_udp_bridge<br/>control sender UDP :9093"]
+    AUTO_UDP --> SIM3["MORAI Ego 차량"]
 
     DESC["ioniq5_description<br/>URDF · sensor TF"] --> VIZ["morai_visualization"]
     POSE --> VIZ
@@ -40,12 +47,12 @@ flowchart LR
     CLOUD --> VIZ
 
     JOY["CYVOX MX"] -->|/joy| CTRL["vehicle_control"]
-    CTRL -->|Ego Ctrl Cmd UDP :9093| SIM3["MORAI Ego 차량"]
+    CTRL -->|수동 Ego Ctrl Cmd UDP :9093| SIM3
     SIM3 -->|Ego Vehicle Status UDP :9094| CTRL
-    PATH_TOPIC -. "향후 자율주행 입력" .-> CTRL
     BRINGUP["morai_bringup"] -. "launch 조합" .-> UDP
     BRINGUP -.-> LOC
     BRINGUP -.-> PATH
+    BRINGUP -.-> TRACK
     BRINGUP -.-> DESC
     BRINGUP -.-> VEL
 ```
@@ -70,6 +77,7 @@ map
 | [`morai_udp_bridge`](src/morai_udp_bridge/README.md) | Camera/GPS/IMU UDP 수신과 ROS 메시지 변환 |
 | [`morai_localization`](src/morai_localization/README.md) | GPS 좌표 투영, IMU 정규화, 최종 pose와 TF |
 | [`morai_path_manager`](src/morai_path_manager/README.md) | 전역경로 로드와 전방 20 pose local path |
+| [`morai_path_tracking`](src/morai_path_tracking/README.md) | odometry velocity와 local path의 Pure Pursuit/PID 자율 제어 |
 | [`morai_visualization`](src/morai_visualization/README.md) | Path/LiDAR RViz profile과 디버그 marker |
 | [`morai_bringup`](src/morai_bringup/README.md) | 위 패키지의 launch와 config 조합 |
 | [`vehicle_control`](src/vehicle_control/README.md) | CYVOX 조이스틱 입력과 MORAI 차량 제어 UDP 송신 |
@@ -139,6 +147,23 @@ roslaunch morai_bringup molit_2026_path_manager.launch
 roslaunch morai_bringup molit_2026_stack.launch
 ```
 
+자율 경로 추종 실행(LiDAR 없이):
+
+```bash
+roslaunch morai_bringup molit_2026_autonomous.launch use_lidar:=false
+```
+
+자율 launch는 Pure Pursuit/PID와 `/control/actuator_command` UDP sender를
+포함하며 RViz는 별도로 실행한다. GPS와 IMU sensor noise는 꺼진 상태를
+전제로 한다. 기본 목표 속도는 `3.0 m/s`이고 controller 게인, 목표 속도,
+안전 임계값은 `morai_path_tracking/config/molit_2026_pure_pursuit.yaml`에서,
+UDP sender 설정은 `morai_udp_bridge/config/molit_2026_control.yaml`에서
+튜닝한다.
+
+MORAI UDP `9093`에는 송신자를 하나만 실행한다. 따라서 자율 sender와 수동
+`vehicle_control` sender를 절대로 동시에 실행하지 않는다. `vehicle_control`은
+독립된 수동 제어 패키지이며 이 자율 launch로 변경되지 않는다.
+
 각 기능 launch는 RViz를 자동으로 열지 않는다. 필요한 화면을 별도 터미널에서
 bringup의 시각화 진입점으로 연다.
 
@@ -178,6 +203,7 @@ roslaunch vehicle_control cyvox_morai.launch
 | 최종 odometry | `/localization/odometry` | `nav_msgs/Odometry` |
 | 전역경로 | `/global_path` | `nav_msgs/Path` |
 | 제어용 부분경로 | `/local_path` | `nav_msgs/Path` |
+| 자율 차량 명령 | `/control/actuator_command` | `morai_udp_bridge/ActuatorCommand` |
 | Path marker | `/visualization/path` | `visualization_msgs/MarkerArray` |
 | 조이스틱 입력 | `/joy` | `sensor_msgs/Joy` |
 | MORAI 차량 상태 | `/vehicle/status` | `vehicle_control/VehicleStatus` |
@@ -195,6 +221,8 @@ roslaunch vehicle_control cyvox_morai.launch
 | UDP IP·port·topic | `morai_udp_bridge/config/molit_2026*.yaml` |
 | UTM offset·yaw·동기화 | `morai_localization/config/molit_2026_kcity.yaml` |
 | 전역/local path 정책 | `morai_path_manager/config/molit_2026_kcity_route_path.yaml` |
+| Pure Pursuit/PID 게인·목표 속도·안전 임계값 | `morai_path_tracking/config/molit_2026_pure_pursuit.yaml` |
+| 자율 제어 UDP sender·watchdog | `morai_udp_bridge/config/molit_2026_control.yaml` |
 | RViz marker | `morai_visualization/config/path_visualizer.yaml` |
 | 조이스틱 축·안전 동작·제어 UDP | `vehicle_control/config/cyvox_mx.yaml` |
 | 실행 조합 | `morai_bringup/launch/*.launch` |
@@ -210,6 +238,7 @@ rostopic hz /sensors/imu/data
 rostopic echo -n 1 /localization/pose
 rostopic echo -n 1 /global_path
 rostopic echo -n 1 /local_path
+rostopic echo -n 1 /control/actuator_command
 rostopic echo -n 1 /joy
 rostopic echo -n 1 /vehicle/status
 rostopic echo -n 1 /vehicle/manual_command
@@ -234,7 +263,8 @@ rostopic echo /diagnostics
 - noise를 켤 때는 localization fusion을 EKF/UKF 계층으로 교체해야 한다.
 - CYVOX는 P/R/N/D 수동 선택을 지원하지만 자율 제어기와의 제어권 중재는 아직
   구현하지 않았다.
-- 전역·지역경로를 사용하는 자율 경로 추종 제어기는 아직 구현하지 않았다.
+- 자율 sender와 수동 `vehicle_control` sender의 제어권 중재는 구현하지
+  않았으므로 두 UDP sender를 동시에 실행하지 않는다.
 - K-City가 아닌 map에서는 UTM offset과 전역경로를 다시 설정해야 한다.
 
 경로 제어 인터페이스는

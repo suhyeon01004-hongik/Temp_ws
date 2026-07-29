@@ -1,9 +1,10 @@
 # 통합 실행 구성
 
 `morai_bringup`은 차량 description, MORAI UDP 센서 수신, Velodyne LiDAR,
-GPS localization과 path manager의 **실행 조합**을 관리한다. 센서 파싱,
-좌표 변환, 경로 계산 같은 기능은 구현하지 않고 각 기능 패키지의 launch와
-config를 연결하는 역할만 맡는다.
+GPS localization, path manager, Pure Pursuit/PID 제어기와 UDP 제어 송신기의
+**실행 조합**을 관리한다. 센서 파싱, 좌표 변환, 경로 계산, 제어 계산 같은
+기능은 구현하지 않고 각 기능 패키지의 launch와 config를 연결하는 역할만
+맡는다.
 
 상세한 설정 변경 절차는
 [`docs/CONFIGURATION_GUIDE_KO.md`](docs/CONFIGURATION_GUIDE_KO.md)를 참고한다.
@@ -16,6 +17,7 @@ config를 연결하는 역할만 맡는다.
 | `molit_2026_localization.launch` | localization 계층 | GPS projector, IMU adapter, direct fusion |
 | `molit_2026_path_manager.launch` | 경로 계층 | global/local path publisher |
 | `molit_2026_stack.launch` | 운영 전체 stack | 위 세 계층 전부 |
+| `molit_2026_autonomous.launch` | 자율 경로 추종 stack | stack, Pure Pursuit/PID, UDP 제어 송신기 |
 | `visualization/path.launch` | 경로 시각화 | path marker, path RViz |
 | `visualization/lidar.launch` | LiDAR 시각화 | LiDAR RViz |
 | `visualization/path_lidar.launch` | 통합 시각화 | path marker, path+LiDAR RViz |
@@ -55,6 +57,17 @@ roslaunch morai_bringup molit_2026_path_manager.launch
 ```bash
 roslaunch morai_bringup molit_2026_stack.launch
 ```
+
+자율 경로 추종 실행(LiDAR 없이):
+
+```bash
+roslaunch morai_bringup molit_2026_autonomous.launch use_lidar:=false
+```
+
+이 launch는 RViz를 실행하지 않는다. 또한 수동 `vehicle_control`은 그대로
+독립된 launch이며 변경하지 않는다. MORAI UDP `9093`의 송신자는 하나만 둘 수
+있으므로 자율 `control_sender_node`와 수동 제어 송신기를 절대로 함께 실행하지
+않는다.
 
 시각화는 기능 stack과 별도 터미널에서 실행한다.
 
@@ -111,6 +124,20 @@ roslaunch morai_bringup molit_2026_sensors.launch use_lidar:=false
 센서 launch에는 localization이나 path manager의 on/off 옵션을 두지 않는다.
 필요한 계층의 launch만 선택하거나 전체가 필요하면 stack launch를 사용한다.
 
+### 자율 경로 추종 launch
+
+`molit_2026_autonomous.launch`는 stack의 모든 인자를 그대로 받아 전달하고,
+다음 두 config 경로를 추가한다.
+
+| 인자 | 기본값 | 역할 |
+| --- | --- | --- |
+| `controller_config` | `morai_path_tracking/config/molit_2026_pure_pursuit.yaml` | Pure Pursuit/PID 게인, 목표 속도, 안전 임계값 |
+| `control_sender_config` | `morai_udp_bridge/config/molit_2026_control.yaml` | `/control/actuator_command` UDP 송신과 watchdog 설정 |
+
+기본 목표 속도는 `3.0 m/s`다. 게인, 목표 속도, 경로/odometry freshness와
+송신 설정은 위 config 파일에서 조정한다. 초기 게인은 MORAI에서 저속으로
+검증하며 튜닝한다.
+
 ## 설정의 소유 패키지
 
 | 변경 대상 | 수정할 파일 | 소유 패키지 |
@@ -119,6 +146,8 @@ roslaunch morai_bringup molit_2026_sensors.launch use_lidar:=false
 | MORAI UDP IP·port·topic | `molit_2026.yaml` | `morai_udp_bridge` |
 | GPS CRS·map offset, yaw 보정·동기화 | `molit_2026_kcity.yaml` | `morai_localization` |
 | 전역경로·local path 20 pose 정책 | `molit_2026_kcity_route_path.yaml` | `morai_path_manager` |
+| Pure Pursuit/PID 게인·목표 속도·안전 임계값 | `molit_2026_pure_pursuit.yaml` | `morai_path_tracking` |
+| 자율 제어 UDP 송신·watchdog | `molit_2026_control.yaml` | `morai_udp_bridge` |
 | marker topic·색상 크기 | `path_visualizer.yaml` | `morai_visualization` |
 | MORAI 시험 시나리오 | `config/morai_scenarios/**/*.json` | `morai_bringup` |
 | 어떤 노드를 함께 실행할지 | `launch/*.launch` | `morai_bringup` |
@@ -140,7 +169,7 @@ MORAI IMU UDP :9303
   -> /localization/imu/data      ─┘
 
 /localization/pose
-  -> /localization/odometry
+  -> /localization/odometry (velocity 포함)
   -> map -> base_footprint -> base_link
 
 공식 경로 파일
@@ -148,6 +177,12 @@ MORAI IMU UDP :9303
 
 /global_path + /local_path + 최종 pose
   -> /visualization/path
+
+/localization/odometry (velocity) + /local_path
+  -> Pure Pursuit/PID
+  -> /control/actuator_command
+  -> morai_udp_bridge UDP sender :9093
+  -> MORAI Ego 차량
 ```
 
 LiDAR는 MORAI native Velodyne UDP를 공식 driver가 받아 `/lidar3D`로 발행한다.
@@ -173,6 +208,11 @@ Velodyne의 `fixed_frame` 기반 주행 왜곡 보정은 현재 기본 비활성
 - 현재 IMU는 `[1.5, 0.0, 0.5]`, 50 Hz, UDP `9303`, noise off가 기준이다.
 - 현재 localization은 필터 없이 GPS X/Y와 IMU yaw를 직접 결합한다. noise를
   켤 때는 fusion 구현을 필터 기반으로 교체해야 한다.
+- 자율 경로 추종은 GPS와 IMU sensor noise가 꺼진 상태를 전제로 한다.
+- 기본 목표 속도 `3.0 m/s`와 Pure Pursuit/PID 게인은
+  `molit_2026_pure_pursuit.yaml`에서 튜닝한다.
+- 자율 UDP sender와 수동 `vehicle_control` UDP sender는 `9093`을 공유하므로
+  동시에 실행하지 않는다. `vehicle_control`은 독립 패키지로 변경하지 않는다.
 - map이나 시나리오가 바뀌면 localization offset과 전역경로 파일을 한 쌍으로
   검증한다.
 - path manager만 실행하면 `/global_path`는 즉시 나오지만,
@@ -193,6 +233,7 @@ rostopic echo -n 1 /localization/odometry
 rosrun tf tf_echo map base_link
 rostopic echo -n 1 /global_path
 rostopic echo -n 1 /local_path
+rostopic echo -n 1 /control/actuator_command
 rostopic echo /diagnostics
 ```
 

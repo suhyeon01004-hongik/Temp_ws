@@ -154,6 +154,89 @@ class BringupLaunchCompositionTest(unittest.TestCase):
             "$(arg lidar_target_frame)",
         )
 
+    def test_autonomous_bringup_composes_tracking_without_manual_control(self):
+        root = self.load_launch("molit_2026_autonomous.launch")
+        expected = {
+            "$(find morai_bringup)/launch/molit_2026_stack.launch",
+            "$(find morai_path_tracking)/launch/pure_pursuit.launch",
+            "$(find morai_udp_bridge)/launch/control_sender.launch",
+        }
+        self.assertEqual(self.include_files(root), expected)
+        self.assertNotIn(
+            "vehicle_control", ET.tostring(root, encoding="unicode")
+        )
+
+        defaults = self.argument_defaults(root)
+        self.assertEqual(
+            defaults["localization_config"],
+            "$(find morai_localization)/config/molit_2026_kcity.yaml",
+        )
+        self.assertEqual(
+            defaults["route_path_config"],
+            "$(find morai_path_manager)/config/"
+            "molit_2026_kcity_route_path.yaml",
+        )
+        self.assertEqual(
+            defaults["global_path_file"],
+            "$(find morai_path_manager)/map/R-KR_PG_K-City_2025/"
+            "2026_molit_comp_global_path.txt",
+        )
+        self.assertEqual(
+            defaults["controller_config"],
+            "$(find morai_path_tracking)/config/"
+            "molit_2026_pure_pursuit.yaml",
+        )
+        self.assertEqual(
+            defaults["control_sender_config"],
+            "$(find morai_udp_bridge)/config/molit_2026_control.yaml",
+        )
+
+        stack = root.find(
+            "./include[@file='$(find morai_bringup)/launch/"
+            "molit_2026_stack.launch']"
+        )
+        self.assertIsNotNone(stack)
+        self.assertEqual(
+            self.include_arguments(stack),
+            {
+                "publish_description": "$(arg publish_description)",
+                "use_lidar": "$(arg use_lidar)",
+                "bridge_config": "$(arg bridge_config)",
+                "vehicle_config": "$(arg vehicle_config)",
+                "sensor_mount_config": "$(arg sensor_mount_config)",
+                "localization_config": "$(arg localization_config)",
+                "route_path_config": "$(arg route_path_config)",
+                "global_path_file": "$(arg global_path_file)",
+                "lidar_device_ip": "$(arg lidar_device_ip)",
+                "lidar_port": "$(arg lidar_port)",
+                "lidar_hz": "$(arg lidar_hz)",
+                "lidar_frame": "$(arg lidar_frame)",
+                "lidar_cut_angle": "$(arg lidar_cut_angle)",
+                "lidar_fixed_frame": "$(arg lidar_fixed_frame)",
+                "lidar_target_frame": "$(arg lidar_target_frame)",
+            },
+        )
+
+        controller = root.find(
+            "./include[@file='$(find morai_path_tracking)/launch/"
+            "pure_pursuit.launch']"
+        )
+        self.assertIsNotNone(controller)
+        self.assertEqual(
+            self.include_arguments(controller),
+            {"config": "$(arg controller_config)"},
+        )
+
+        sender = root.find(
+            "./include[@file='$(find morai_udp_bridge)/launch/"
+            "control_sender.launch']"
+        )
+        self.assertIsNotNone(sender)
+        self.assertEqual(
+            self.include_arguments(sender),
+            {"config": "$(arg control_sender_config)"},
+        )
+
     def test_legacy_integration_test_launch_is_removed(self):
         legacy_path = LAUNCH_DIR / "gps_localization_path_test.launch"
         self.assertFalse(legacy_path.exists())
