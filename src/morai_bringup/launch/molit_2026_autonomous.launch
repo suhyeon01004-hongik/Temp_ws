@@ -24,8 +24,10 @@
   <arg name="lidar_fixed_frame" default=""/>
   <arg name="lidar_target_frame" default=""/>
 
+  <arg name="vehicle_status_config"
+       default="$(find morai_udp_bridge)/config/molit_2026_vehicle_status.yaml"/>
   <arg name="controller_config"
-       default="$(find morai_path_tracking)/config/molit_2026_pure_pursuit.yaml"/>
+       default="$(find morai_path_tracking)/config/molit_2026_path_tracking.yaml"/>
   <arg name="control_sender_config"
        default="$(find morai_udp_bridge)/config/molit_2026_control.yaml"/>
 
@@ -47,7 +49,11 @@
     <arg name="lidar_target_frame" value="$(arg lidar_target_frame)"/>
   </include>
 
-  <include file="$(find morai_path_tracking)/launch/pure_pursuit.launch">
+  <include file="$(find morai_udp_bridge)/launch/competition_vehicle_status_receiver.launch">
+    <arg name="config" value="$(arg vehicle_status_config)"/>
+  </include>
+
+  <include file="$(find morai_path_tracking)/launch/path_tracking.launch">
     <arg name="config" value="$(arg controller_config)"/>
   </include>
 

@@ -14,7 +14,9 @@
 - GPS 음영 구역에서는 GPS 정보가 모두 blackout 된다.
 
 규정의 허용 네트워크에는 `Ego Ctrl Cmd`, `CollisionData`,
-`Competition Vehicle Status`도 있지만 이 패키지는 센서 통신만 담당한다.
+`Competition Vehicle Status`가 포함된다. 이 패키지는 센서 수신 외에
+Competition Vehicle Status 수신과 Ego Ctrl Cmd 송신의 wire 경계도 담당한다.
+경로 추종과 PID 계산은 `morai_path_tracking`에 남긴다.
 
 고정 카메라의 위치·자세·해상도·FOV는 통신 설정에 넣지 않는다. 규정값은
 `ioniq5_description/config/molit_2026_sensor_mounts.yaml`에서 단일 원본으로
@@ -31,6 +33,7 @@
 | GPS | 9301 |
 | IMU | 9303 |
 | VLP-16 | 2368 |
+| Competition Vehicle Status | 9094 |
 
 대회 LAN에서는 SIM의 Destination IP를 ROS PC 주소로 설정한다. `Host Sensor
 Port`는 SIM의 송신 측 설정이며 ROS 수신 socket이 bind하는 Destination Port와
@@ -45,6 +48,8 @@ Port`는 SIM의 송신 측 설정이며 ROS 수신 socket이 bind하는 Destinat
   115-byte 형식을 모두 지원한다.
 - VLP-16: `morai_bringup`이 MORAI native UDP를 공식 ROS `velodyne` 드라이버에
   연결한다. 이 브리지 노드는 중복 packet decoder를 구현하지 않는다.
+- Competition Vehicle Status: 대회용 Simulator의 `CompetitioninfoPublisher`
+  152-byte payload만 허용하고 x축 velocity를 km/h에서 m/s로 변환한다.
 
 기본 ROS header timestamp는 PC 수신 시각이다. 실제 UDP sec/nsec와 ROS clock의
 동기화가 검증된 경우에만 `use_sensor_time: true`로 변경한다.

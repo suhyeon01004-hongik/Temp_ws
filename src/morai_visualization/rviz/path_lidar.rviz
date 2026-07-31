@@ -25,8 +25,10 @@ Visualization Manager:
       Namespaces:
         global_path: true
         global_path_start: true
+        lookahead_point: true
         local_path: true
         nearest_waypoint: true
+        stanley_projection_point: true
         vehicle_heading: true
         vehicle_origin: true
       Queue Size: 100

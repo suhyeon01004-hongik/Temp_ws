@@ -20,6 +20,7 @@
 | 우측 카메라 정보 | 위와 동일 | `/image/right/camera_info` | `sensor_msgs/CameraInfo` |
 | GPS | `9301` | `/sensors/gps/fix` | `sensor_msgs/NavSatFix` |
 | IMU | `9303` | `/sensors/imu/data` | `sensor_msgs/Imu` |
+| Competition Vehicle Status | `9094` | `/vehicle/competition_status` | `morai_udp_bridge/CompetitionVehicleStatus` |
 | 상태 진단 | - | `/diagnostics` | `diagnostic_msgs/DiagnosticArray` |
 
 GPS quality가 0이면 `STATUS_NO_FIX`와 NaN 좌표를 발행한다. 패킷이 완전히
@@ -37,6 +38,24 @@ LiDAR 관련 토픽은 bringup과 Velodyne driver가 발행한다.
 | --- | --- | --- |
 | `/sensors/lidar/packets` | `velodyne_msgs/VelodyneScan` | VLP-16 원시 패킷 |
 | `/lidar3D` | `sensor_msgs/PointCloud2` | 변환된 point cloud |
+
+## Competition Vehicle Status 수신
+
+`competition_vehicle_status_receiver_node`는 대회용
+`CompetitioninfoPublisher`의 `#MoraiInfo$` 152-byte payload만 수신한다.
+다른 길이의 full Ego Vehicle Status를 같은 패킷으로 오인하지 않는다.
+
+| ROS 필드 | 원본 | 변환 |
+| --- | --- | --- |
+| `control_mode` | payload +8, `uint8` | 그대로 |
+| `gear` | payload +9, `uint8` | 그대로 |
+| `velocity_x_mps` | payload +74, `float32` km/h | m/s로 나누기 3.6 |
+
+MORAI Network Settings에서 `CompetitioninfoPublisher` 또는 표시 이름
+`Competition Vehicle Status`를 추가하고 Destination IP를 ROS PC 주소,
+Destination Port를 기본 `9094`로 설정한다. 자율 제어기는 이 토픽의
+`velocity_x_mps`를 PID feedback으로 사용하며 localization 추정 속도로
+자동 fallback하지 않는다.
 
 ## 자율 제어 UDP 송신
 
@@ -60,6 +79,11 @@ datagram을 보내며, 유효한 명령을 0.25초 동안 받지 못하면 accel
 `steering_sign`은 차종 좌표계와 MORAI 좌표계의 부호가 반대일 때 `-1.0`으로
 설정한다. MORAI Control Destination Port는 `9093`이어야 한다.
 
+기어는 control packet에 포함되며 MORAI 번호 `1=P, 2=R, 3=N, 4=D, 5=L`을
+사용한다. 기본 `gear_command_enabled: false`에서는 `drive_gear: 4`를 유지한다.
+향후 활성화하면 `/control/gear_command`를 구독하지만, fresh Competition
+Status, 정지 속도, 충분한 brake, 낮은 accel 조건을 만족할 때만 변경한다.
+
 자율 `control_sender_node`와 수동 `vehicle_control` UDP sender를 동시에 실행하면
 안 된다. 두 sender가 같은 MORAI 제어 대상에 서로 다른 datagram을 보내므로, 한
 번에 하나만 실행한다.
@@ -72,6 +96,7 @@ datagram을 보내며, 유효한 명령을 0.25초 동안 받지 못하면 accel
 | `config/molit_2026_localization.yaml` | localization/path 시험용 GPS+IMU 수신 |
 | `config/molit_2026_gps_only.yaml` | GPS projector 단독 시험용 |
 | `config/molit_2026_control.yaml` | 자율 ActuatorCommand UDP sender |
+| `config/molit_2026_vehicle_status.yaml` | Competition Vehicle Status UDP receiver |
 
 현재 `0725demo.json`의 GPS는 30 Hz, Destination Port `9301`이고 IMU는
 50 Hz, Destination Port `9303`이며
@@ -110,6 +135,27 @@ IMU header의 data-length 필드도 MORAI 버전마다 의미가 달라 공식 �
 | `stale_timeout` | 이 시간 동안 수신이 없으면 stale 진단 |
 | `max_hz` | 허용 주기 상한 감시값. `0`이면 비활성 |
 
+Competition Status 수신 파라미터:
+
+| 파라미터 | 기본값 | 설명 |
+| --- | ---: | --- |
+| `bind_ip` | `0.0.0.0` | UDP bind 주소 |
+| `listen_port` | `9094` | MORAI Destination Port |
+| `allowed_source_ip` | 빈 문자열 | 허용할 MORAI 송신 IP |
+| `receive_buffer_bytes` | `1048576` | UDP 수신 버퍼 |
+| `status_topic` | `/vehicle/competition_status` | ROS 출력 |
+| `stale_timeout_sec` | `0.25` | diagnostics stale 기준 |
+| `maximum_publish_hz` | `50.0` | diagnostics 주기 상한 |
+| `diagnostics_period_sec` | `1.0` | diagnostics 발행 주기 |
+
+제어 sender에서 수정 가능한 값은 `destination_ip/port`, `send_rate_hz`,
+`command_timeout_sec`, `safe_brake_command`, `maximum_steering_angle_deg`,
+`steering_sign`, `drive_gear`다. 선택적 기어 변경은
+`gear_command_enabled`, `gear_command_topic`, `vehicle_status_topic`,
+`gear_change_maximum_abs_speed_mps`, `gear_change_status_timeout_sec`,
+`gear_change_minimum_brake_command`,
+`gear_change_maximum_accel_command`로 설정한다.
+
 센서 `frame_id`, 카메라 해상도와 FOV는
 `ioniq5_description/config/molit_2026_sensor_mounts.yaml`이 단일 원본이다.
 bringup이 이 YAML을 `sensor_setup` 파라미터로 bridge에 주입한다.
@@ -125,21 +171,15 @@ source ~/catkin_ws/install/setup.bash
 roslaunch morai_bringup molit_2026_sensors.launch
 ```
 
-GPS+IMU localization/path까지 함께 실행하되 LiDAR를 끌 때:
+GPS+IMU localization/path와 기본 LiDAR까지 함께 실행할 때:
 
 ```bash
-roslaunch morai_bringup molit_2026_stack.launch use_lidar:=false
+roslaunch morai_bringup molit_2026_stack.launch
 ```
 
 GPS `9301`과 IMU `9303`만 받으려면 센서 bringup의 `bridge_config`에
 `molit_2026_localization.yaml`을 지정한다. GPS projector만 따로 시험할 때는
 `molit_2026_gps_only.yaml`을 지정할 수 있다.
-
-LiDAR 없이 카메라/GPS/IMU를 모두 받을 때:
-
-```bash
-roslaunch morai_bringup molit_2026_sensors.launch use_lidar:=false
-```
 
 자율 제어 sender만 실행할 때:
 
@@ -147,6 +187,13 @@ roslaunch morai_bringup molit_2026_sensors.launch use_lidar:=false
 source /opt/ros/noetic/setup.bash
 source ~/catkin_ws/devel/setup.bash
 roslaunch morai_udp_bridge control_sender.launch
+```
+
+Competition Status receiver만 실행할 때:
+
+```bash
+roslaunch morai_udp_bridge competition_vehicle_status_receiver.launch
+rostopic echo /vehicle/competition_status
 ```
 
 별도 terminal에서 명령 interface와 50 Hz 발행을 확인한다.
@@ -198,6 +245,9 @@ src/protocol.cpp           순수 Camera/GPS/IMU parser와 JPEG 조립
 src/transport.cpp          UDP worker와 diagnostics
 src/streams.cpp            ROS publisher
 src/bridge_node.cpp        ROS 파라미터 조립과 실행 진입점
+src/competition_status_protocol.cpp  대회 Status packet parser
+src/competition_vehicle_status_receiver_node.cpp  Status UDP/ROS 경계
+src/control_sender_node.cpp  actuator/optional gear command UDP 송신
 ```
 
 패킷 규격 수정은 `protocol.*`, socket/진단 수정은 `transport.*`, ROS 메시지
@@ -211,8 +261,9 @@ rostopic hz /image/front/compressed
 rostopic echo -n 1 /sensors/gps/fix
 rostopic hz /sensors/imu/data
 rostopic hz /lidar3D
+rostopic echo /vehicle/competition_status
 rostopic echo /diagnostics
-ss -lunp | grep -E ':(9291|9293|9295|9301|9303|2368) '
+ss -lunp | grep -E ':(9094|9291|9293|9295|9301|9303|2368) '
 ```
 
 - 토픽이 없으면 worker 활성화와 launch에서 선택한 config를 확인한다.

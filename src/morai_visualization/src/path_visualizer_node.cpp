@@ -7,6 +7,7 @@
 #include <string>
 
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Path.h>
 #include <ros/ros.h>
@@ -53,6 +54,12 @@ class PathVisualizerNode {
         "localization_topic", localization_topic_,
         "/localization/pose");
     private_node_.param<std::string>(
+        "lookahead_point_topic", lookahead_point_topic_,
+        "/control/lookahead_point");
+    private_node_.param<std::string>(
+        "stanley_projection_point_topic", stanley_projection_point_topic_,
+        "/control/stanley_projection_point");
+    private_node_.param<std::string>(
         "marker_topic", marker_topic_, "/visualization/path");
     private_node_.param<std::string>("frame_id", frame_id_, "map");
     private_node_.param<std::string>("base_frame_id", base_frame_id_,
@@ -65,6 +72,12 @@ class PathVisualizerNode {
                         vehicle_origin_label_height_, 0.35);
     private_node_.param("nearest_point_diameter", nearest_point_diameter_,
                         0.7);
+    private_node_.param("lookahead_point_diameter",
+                        lookahead_point_diameter_, 0.8);
+    private_node_.param("stanley_projection_point_diameter",
+                        stanley_projection_point_diameter_, 0.65);
+    private_node_.param("lookahead_marker_lifetime_sec",
+                        lookahead_marker_lifetime_sec_, 0.3);
     private_node_.param("show_global_path_start", show_global_path_start_,
                         true);
     private_node_.param("global_start_diameter", global_start_diameter_, 1.4);
@@ -73,14 +86,19 @@ class PathVisualizerNode {
 
     if (frame_id_.empty() || base_frame_id_.empty() || marker_topic_.empty() ||
         global_path_topic_.empty() || local_path_topic_.empty() ||
-        localization_topic_.empty()) {
+        localization_topic_.empty() || lookahead_point_topic_.empty() ||
+        stanley_projection_point_topic_.empty()) {
       throw std::invalid_argument(
           "visualizer topic names and frame IDs must not be empty");
     }
     if (global_line_width_ <= 0.0 || local_line_width_ <= 0.0 ||
         vehicle_origin_diameter_ <= 0.0 ||
         vehicle_origin_label_height_ <= 0.0 ||
-        nearest_point_diameter_ <= 0.0 || global_start_diameter_ <= 0.0 ||
+        nearest_point_diameter_ <= 0.0 ||
+        lookahead_point_diameter_ <= 0.0 ||
+        stanley_projection_point_diameter_ <= 0.0 ||
+        lookahead_marker_lifetime_sec_ <= 0.0 ||
+        global_start_diameter_ <= 0.0 ||
         global_start_text_height_ <= 0.0) {
       throw std::invalid_argument("visualizer sizes must be positive");
     }
@@ -96,6 +114,13 @@ class PathVisualizerNode {
     localization_subscriber_ =
         node_.subscribe(localization_topic_, 10,
                         &PathVisualizerNode::handleLocalization, this);
+    lookahead_subscriber_ =
+        node_.subscribe(lookahead_point_topic_, 10,
+                        &PathVisualizerNode::handleLookaheadPoint, this);
+    stanley_projection_subscriber_ =
+        node_.subscribe(stanley_projection_point_topic_, 10,
+                        &PathVisualizerNode::handleStanleyProjectionPoint,
+                        this);
   }
 
  private:
@@ -189,6 +214,76 @@ class PathVisualizerNode {
     current_pose_ = *pose;
     has_current_position_ = true;
     publish();
+  }
+
+  void handleLookaheadPoint(
+      const geometry_msgs::PointStamped::ConstPtr& point) {
+    if (point->header.frame_id != base_frame_id_ ||
+        !std::isfinite(point->point.x) ||
+        !std::isfinite(point->point.y) ||
+        !std::isfinite(point->point.z)) {
+      ROS_WARN_STREAM_THROTTLE(
+          5.0, "path visualizer discarded lookahead point in frame '"
+                   << point->header.frame_id << "' (expected '"
+                   << base_frame_id_ << "')");
+      return;
+    }
+    lookahead_point_ = *point;
+    has_lookahead_point_ = true;
+    publish();
+  }
+
+  void handleStanleyProjectionPoint(
+      const geometry_msgs::PointStamped::ConstPtr& point) {
+    if (point->header.frame_id != base_frame_id_ ||
+        !std::isfinite(point->point.x) ||
+        !std::isfinite(point->point.y) ||
+        !std::isfinite(point->point.z)) {
+      ROS_WARN_STREAM_THROTTLE(
+          5.0, "path visualizer discarded Stanley projection point in frame '"
+                   << point->header.frame_id << "' (expected '"
+                   << base_frame_id_ << "')");
+      return;
+    }
+    stanley_projection_point_ = *point;
+    has_stanley_projection_point_ = true;
+    publish();
+  }
+
+  void appendLookaheadMarker(
+      visualization_msgs::MarkerArray* markers) const {
+    if (!has_lookahead_point_) {
+      return;
+    }
+    visualization_msgs::Marker target =
+        vehicleMarker("lookahead_point", 0,
+                      visualization_msgs::Marker::SPHERE);
+    target.pose.position = lookahead_point_.point;
+    target.pose.position.z += lookahead_point_diameter_ * 0.5;
+    target.scale.x = lookahead_point_diameter_;
+    target.scale.y = lookahead_point_diameter_;
+    target.scale.z = lookahead_point_diameter_;
+    target.color = color(0.15, 1.0, 0.25);
+    target.lifetime = ros::Duration(lookahead_marker_lifetime_sec_);
+    markers->markers.push_back(target);
+  }
+
+  void appendStanleyProjectionMarker(
+      visualization_msgs::MarkerArray* markers) const {
+    if (!has_stanley_projection_point_) {
+      return;
+    }
+    visualization_msgs::Marker target =
+        vehicleMarker("stanley_projection_point", 0,
+                      visualization_msgs::Marker::SPHERE);
+    target.pose.position = stanley_projection_point_.point;
+    target.pose.position.z += stanley_projection_point_diameter_ * 0.5;
+    target.scale.x = stanley_projection_point_diameter_;
+    target.scale.y = stanley_projection_point_diameter_;
+    target.scale.z = stanley_projection_point_diameter_;
+    target.color = color(0.1, 0.75, 1.0);
+    target.lifetime = ros::Duration(lookahead_marker_lifetime_sec_);
+    markers->markers.push_back(target);
   }
 
   void appendVehicleAndNearestMarkers(
@@ -329,6 +424,8 @@ class PathVisualizerNode {
     if (has_current_position_) {
       appendVehicleAndNearestMarkers(&markers);
     }
+    appendLookaheadMarker(&markers);
+    appendStanleyProjectionMarker(&markers);
     marker_publisher_.publish(markers);
   }
 
@@ -337,6 +434,8 @@ class PathVisualizerNode {
   std::string global_path_topic_;
   std::string local_path_topic_;
   std::string localization_topic_;
+  std::string lookahead_point_topic_;
+  std::string stanley_projection_point_topic_;
   std::string marker_topic_;
   std::string frame_id_;
   std::string base_frame_id_;
@@ -345,6 +444,9 @@ class PathVisualizerNode {
   double vehicle_origin_diameter_ = 0.30;
   double vehicle_origin_label_height_ = 0.35;
   double nearest_point_diameter_ = 0.7;
+  double lookahead_point_diameter_ = 0.8;
+  double stanley_projection_point_diameter_ = 0.65;
+  double lookahead_marker_lifetime_sec_ = 0.3;
   bool show_global_path_start_ = true;
   double global_start_diameter_ = 1.4;
   double global_start_text_height_ = 1.0;
@@ -352,12 +454,18 @@ class PathVisualizerNode {
   ros::Subscriber global_subscriber_;
   ros::Subscriber local_subscriber_;
   ros::Subscriber localization_subscriber_;
+  ros::Subscriber lookahead_subscriber_;
+  ros::Subscriber stanley_projection_subscriber_;
   nav_msgs::Path global_path_;
   nav_msgs::Path local_path_;
   geometry_msgs::PoseStamped current_pose_;
+  geometry_msgs::PointStamped lookahead_point_;
+  geometry_msgs::PointStamped stanley_projection_point_;
   bool has_global_path_ = false;
   bool has_local_path_ = false;
   bool has_current_position_ = false;
+  bool has_lookahead_point_ = false;
+  bool has_stanley_projection_point_ = false;
 };
 
 }  // namespace

@@ -1,0 +1,790 @@
+baseline050_01:
+  duration_sec: 129.7667863368988
+  status_samples: 3894
+  active_samples: 3894
+  nonfinite_or_inactive_samples: 0
+  states:
+    ACTIVE: 3894
+  modes:
+    hybrid: 3894
+  longitudinal_states:
+    ACCEL: 3028
+    COAST: 451
+    BRAKE: 415
+  maximum_speed_kph: 58.30887908935547
+  maximum_target_speed_kph: 58.0
+  maximum_cte_event:
+    elapsed_sec: 10.50025725364685
+    signed_cte_m: 0.5367896974240581
+    speed_kph: 17.050887680053712
+    target_speed_kph: 16.68280446050348
+    curvature_m_inv: 0.07622973009672585
+  brake_samples: 415
+  straight_samples: 942
+  straight_brake_samples: 0
+  direct_pedal_reversals: 16
+  steering_rate_rms_degps: 18.07263781594363
+  steering_rate_p95_degps: 52.08141645707104
+  overall:
+    samples: 3894
+    cte_rms_m: 0.15204830930889157
+    cte_p95_m: 0.32520387742625306
+    cte_max_m: 0.5367896974240581
+    heading_rms_deg: 5.771658616153994
+    steering_rms_deg: 6.403714440048813
+  straight:
+    samples: 942
+    cte_rms_m: 0.10088339806315688
+    cte_p95_m: 0.18776189879105334
+    cte_max_m: 0.2967398672493406
+    heading_rms_deg: 1.4528477829841517
+    steering_rms_deg: 0.8667480361607918
+  curved:
+    samples: 2856
+    cte_rms_m: 0.16511088731202844
+    cte_p95_m: 0.35783533652140215
+    cte_max_m: 0.5367896974240581
+    heading_rms_deg: 6.67445931003192
+    steering_rms_deg: 7.447285218201107
+  high_speed:
+    samples: 251
+    cte_rms_m: 0.1144524212980202
+    cte_p95_m: 0.18998684801067664
+    cte_max_m: 0.21854074006762123
+    heading_rms_deg: 1.2751435153333015
+    steering_rms_deg: 0.6063531244984194
+  trajectory:
+    rear_center_rms_m: 0.14947471015624383
+    rear_center_p95_m: 0.2433460268298727
+    rear_center_max_m: 0.33274551657994295
+    path_heading_rms_deg: 1.824810353077675
+    wheel_outer_offset_p95_m: 1.2569133210559083
+    wheel_outer_offset_max_m: 1.4609147236800064
+    wheel_min_lane_clearance_m: 0.03908527631999359
+    minimum_wheel_clearance_event:
+      elapsed_sec: 10.410931825637817
+      x_m: -94.51712674775627
+      y_m: -360.1339150685817
+      rear_offset_m: -0.10071710717137311
+      heading_error_deg: -3.503635999568754
+      wheel_clearance_m: 0.03908527631999359
+    wheel_line_contact_samples: 0
+    body_corner_offset_p95_m: 1.4623945093771205
+    body_corner_offset_max_m: 1.692087474682015
+    body_min_lane_clearance_m: -0.19208747468201492
+    body_line_contact_samples: 41
+    lane_half_width_assumption_m: 1.5
+    vehicle_width_assumption_m: 1.892
+    wheelbase_assumption_m: 3.0
+    odometry_samples: 1298
+baseline050_02:
+  duration_sec: 129.6999843120575
+  status_samples: 3892
+  active_samples: 3892
+  nonfinite_or_inactive_samples: 0
+  states:
+    ACTIVE: 3892
+  modes:
+    hybrid: 3892
+  longitudinal_states:
+    ACCEL: 3048
+    COAST: 425
+    BRAKE: 419
+  maximum_speed_kph: 58.29247512817383
+  maximum_target_speed_kph: 58.0
+  maximum_cte_event:
+    elapsed_sec: 114.8665623664856
+    signed_cte_m: -0.5168470437779672
+    speed_kph: 15.953760337829591
+    target_speed_kph: 15.918919401777064
+    curvature_m_inv: 0.10955677967110401
+  brake_samples: 419
+  straight_samples: 935
+  straight_brake_samples: 0
+  direct_pedal_reversals: 18
+  steering_rate_rms_degps: 18.40910441322402
+  steering_rate_p95_degps: 54.8687732251976
+  overall:
+    samples: 3892
+    cte_rms_m: 0.15176388471101054
+    cte_p95_m: 0.3278886030806656
+    cte_max_m: 0.5168470437779672
+    heading_rms_deg: 5.746185565209335
+    steering_rms_deg: 6.430666759507602
+  straight:
+    samples: 935
+    cte_rms_m: 0.08968977745556811
+    cte_p95_m: 0.16666338158467997
+    cte_max_m: 0.2071900668143014
+    heading_rms_deg: 1.3918807858488418
+    steering_rms_deg: 0.7558186619337037
+  curved:
+    samples: 2864
+    cte_rms_m: 0.16691088055084635
+    cte_p95_m: 0.3532874732031858
+    cte_max_m: 0.5168470437779672
+    heading_rms_deg: 6.64085974568292
+    steering_rms_deg: 7.47326844511
+  high_speed:
+    samples: 259
+    cte_rms_m: 0.10863027373705339
+    cte_p95_m: 0.17151669573441178
+    cte_max_m: 0.20572757579251577
+    heading_rms_deg: 1.3327562632192003
+    steering_rms_deg: 0.4868770982790869
+  trajectory:
+    rear_center_rms_m: 0.1495676571223663
+    rear_center_p95_m: 0.2416405260716561
+    rear_center_max_m: 0.34266678251654537
+    path_heading_rms_deg: 1.814808961226827
+    wheel_outer_offset_p95_m: 1.2540060126547483
+    wheel_outer_offset_max_m: 1.431663724844647
+    wheel_min_lane_clearance_m: 0.0683362751553529
+    minimum_wheel_clearance_event:
+      elapsed_sec: 13.513305902481079
+      x_m: -99.2527193671558
+      y_m: -347.62505831569433
+      rear_offset_m: -0.07373885692161442
+      heading_error_deg: -5.302806544117415
+      wheel_clearance_m: 0.0683362751553529
+    wheel_line_contact_samples: 0
+    body_corner_offset_p95_m: 1.4466938758022696
+    body_corner_offset_max_m: 1.7084093081598994
+    body_min_lane_clearance_m: -0.20840930815989944
+    body_line_contact_samples: 40
+    lane_half_width_assumption_m: 1.5
+    vehicle_width_assumption_m: 1.892
+    wheelbase_assumption_m: 3.0
+    odometry_samples: 1298
+baseline050_03:
+  duration_sec: 129.6999397277832
+  status_samples: 3892
+  active_samples: 3892
+  nonfinite_or_inactive_samples: 0
+  states:
+    ACTIVE: 3892
+  modes:
+    hybrid: 3892
+  longitudinal_states:
+    ACCEL: 3038
+    COAST: 418
+    BRAKE: 436
+  maximum_speed_kph: 58.29474105834961
+  maximum_target_speed_kph: 58.0
+  maximum_cte_event:
+    elapsed_sec: 114.93336939811707
+    signed_cte_m: -0.6005261686995854
+    speed_kph: 15.67459774017334
+    target_speed_kph: 15.859610329136176
+    curvature_m_inv: 0.07812911686673513
+  brake_samples: 436
+  straight_samples: 943
+  straight_brake_samples: 0
+  direct_pedal_reversals: 20
+  steering_rate_rms_degps: 17.51961161555532
+  steering_rate_p95_degps: 49.98679092590462
+  overall:
+    samples: 3892
+    cte_rms_m: 0.1506358790114407
+    cte_p95_m: 0.32594867847343084
+    cte_max_m: 0.6005261686995854
+    heading_rms_deg: 5.787848366621498
+    steering_rms_deg: 6.384498026270807
+  straight:
+    samples: 943
+    cte_rms_m: 0.09630423153940461
+    cte_p95_m: 0.17133140920279039
+    cte_max_m: 0.24272052256608054
+    heading_rms_deg: 1.4556390756323836
+    steering_rms_deg: 0.8919827787702692
+  curved:
+    samples: 2876
+    cte_rms_m: 0.16456154295705863
+    cte_p95_m: 0.3484046584917101
+    cte_max_m: 0.6005261686995854
+    heading_rms_deg: 6.673028280532728
+    steering_rms_deg: 7.402403545180289
+  high_speed:
+    samples: 265
+    cte_rms_m: 0.11631757970812187
+    cte_p95_m: 0.1989805451066543
+    cte_max_m: 0.275080008583118
+    heading_rms_deg: 1.3327456645779188
+    steering_rms_deg: 0.6287668485178307
+  trajectory:
+    rear_center_rms_m: 0.15012791459014357
+    rear_center_p95_m: 0.2485726083100449
+    rear_center_max_m: 0.34799064891057024
+    path_heading_rms_deg: 1.8389397853638827
+    wheel_outer_offset_p95_m: 1.2574199911093022
+    wheel_outer_offset_max_m: 1.4896889699310885
+    wheel_min_lane_clearance_m: 0.010311030068911542
+    minimum_wheel_clearance_event:
+      elapsed_sec: 114.82781076431274
+      x_m: -80.84692251344677
+      y_m: 340.2773521821946
+      rear_offset_m: -0.1158775070363462
+      heading_error_deg: -0.7137291942880438
+      wheel_clearance_m: 0.010311030068911542
+    wheel_line_contact_samples: 0
+    body_corner_offset_p95_m: 1.4454513168311103
+    body_corner_offset_max_m: 1.7867895620955285
+    body_min_lane_clearance_m: -0.2867895620955285
+    body_line_contact_samples: 32
+    lane_half_width_assumption_m: 1.5
+    vehicle_width_assumption_m: 1.892
+    wheelbase_assumption_m: 3.0
+    odometry_samples: 1297
+recovery045_01:
+  duration_sec: 129.76656126976013
+  status_samples: 3894
+  active_samples: 3894
+  nonfinite_or_inactive_samples: 0
+  states:
+    ACTIVE: 3894
+  modes:
+    hybrid: 3894
+  longitudinal_states:
+    ACCEL: 3023
+    COAST: 434
+    BRAKE: 437
+  maximum_speed_kph: 58.28486709594727
+  maximum_target_speed_kph: 58.0
+  maximum_cte_event:
+    elapsed_sec: 22.33323621749878
+    signed_cte_m: -0.45091289493566006
+    speed_kph: 15.698046684265137
+    target_speed_kph: 16.302981022760974
+    curvature_m_inv: 0.06826044816080723
+  brake_samples: 437
+  straight_samples: 932
+  straight_brake_samples: 0
+  direct_pedal_reversals: 18
+  steering_rate_rms_degps: 17.985739500490666
+  steering_rate_p95_degps: 51.84881144605887
+  overall:
+    samples: 3894
+    cte_rms_m: 0.14978145701217266
+    cte_p95_m: 0.3197573791868175
+    cte_max_m: 0.45091289493566006
+    heading_rms_deg: 5.76445450577267
+    steering_rms_deg: 6.36232055202372
+  straight:
+    samples: 932
+    cte_rms_m: 0.09712343818940565
+    cte_p95_m: 0.16857619885879482
+    cte_max_m: 0.2369957141444788
+    heading_rms_deg: 1.4484549739100223
+    steering_rms_deg: 0.8815342415674435
+  curved:
+    samples: 2879
+    cte_rms_m: 0.1635489614255938
+    cte_p95_m: 0.3476940781031975
+    cte_max_m: 0.45091289493566006
+    heading_rms_deg: 6.644340798884287
+    steering_rms_deg: 7.371546148628609
+  high_speed:
+    samples: 268
+    cte_rms_m: 0.10925692255497566
+    cte_p95_m: 0.17783141822222057
+    cte_max_m: 0.2529208531207359
+    heading_rms_deg: 1.2513040338273054
+    steering_rms_deg: 0.629310180500026
+  trajectory:
+    rear_center_rms_m: 0.14983693410064416
+    rear_center_p95_m: 0.24421540891964055
+    rear_center_max_m: 0.33618534676426537
+    path_heading_rms_deg: 1.8213501045618279
+    wheel_outer_offset_p95_m: 1.2505625313418554
+    wheel_outer_offset_max_m: 1.3611109261573182
+    wheel_min_lane_clearance_m: 0.1388890738426818
+    minimum_wheel_clearance_event:
+      elapsed_sec: 115.17841863632202
+      x_m: -79.50326669565402
+      y_m: 340.80084264837205
+      rear_offset_m: -0.11955983659807834
+      heading_error_deg: 4.834377907065367
+      wheel_clearance_m: 0.1388890738426818
+    wheel_line_contact_samples: 0
+    body_corner_offset_p95_m: 1.4497575637158056
+    body_corner_offset_max_m: 1.6127625017028229
+    body_min_lane_clearance_m: -0.11276250170282287
+    body_line_contact_samples: 29
+    lane_half_width_assumption_m: 1.5
+    vehicle_width_assumption_m: 1.892
+    wheelbase_assumption_m: 3.0
+    odometry_samples: 1298
+recovery045_02:
+  duration_sec: 129.7335855960846
+  status_samples: 3893
+  active_samples: 3893
+  nonfinite_or_inactive_samples: 0
+  states:
+    ACTIVE: 3893
+  modes:
+    hybrid: 3893
+  longitudinal_states:
+    ACCEL: 3038
+    COAST: 446
+    BRAKE: 409
+  maximum_speed_kph: 58.29270858764649
+  maximum_target_speed_kph: 58.0
+  maximum_cte_event:
+    elapsed_sec: 114.0667872428894
+    signed_cte_m: -0.5680786602269544
+    speed_kph: 18.245793342590332
+    target_speed_kph: 17.267014415796798
+    curvature_m_inv: 0.09155711725184378
+  brake_samples: 409
+  straight_samples: 931
+  straight_brake_samples: 0
+  direct_pedal_reversals: 16
+  steering_rate_rms_degps: 17.67791164388376
+  steering_rate_p95_degps: 51.44777089670538
+  overall:
+    samples: 3893
+    cte_rms_m: 0.15164362811315102
+    cte_p95_m: 0.32364469465023493
+    cte_max_m: 0.5680786602269544
+    heading_rms_deg: 5.770138494526659
+    steering_rms_deg: 6.450642293989888
+  straight:
+    samples: 931
+    cte_rms_m: 0.09714946460510322
+    cte_p95_m: 0.17399647720002642
+    cte_max_m: 0.26184198218811455
+    heading_rms_deg: 1.4934345446327162
+    steering_rms_deg: 0.9440387041930196
+  curved:
+    samples: 2878
+    cte_rms_m: 0.16565507728549947
+    cte_p95_m: 0.3463606275981765
+    cte_max_m: 0.5680786602269544
+    heading_rms_deg: 6.648357498365886
+    steering_rms_deg: 7.474975604666631
+  high_speed:
+    samples: 260
+    cte_rms_m: 0.11162773990906817
+    cte_p95_m: 0.17980101295130818
+    cte_max_m: 0.22978888189286206
+    heading_rms_deg: 1.323999403773509
+    steering_rms_deg: 0.587020543852306
+  trajectory:
+    rear_center_rms_m: 0.14956083916869262
+    rear_center_p95_m: 0.2451564257082337
+    rear_center_max_m: 0.34516077807942924
+    path_heading_rms_deg: 1.8105856427006508
+    wheel_outer_offset_p95_m: 1.2591091724802501
+    wheel_outer_offset_max_m: 1.475310500210032
+    wheel_min_lane_clearance_m: 0.02468949978996804
+    minimum_wheel_clearance_event:
+      elapsed_sec: 114.00629329681396
+      x_m: -84.46482145687332
+      y_m: 337.40190571686253
+      rear_offset_m: 0.028724298935092187
+      heading_error_deg: 2.6505643594066273
+      wheel_clearance_m: 0.02468949978996804
+    wheel_line_contact_samples: 0
+    body_corner_offset_p95_m: 1.4509038111847552
+    body_corner_offset_max_m: 1.7365459782471357
+    body_min_lane_clearance_m: -0.23654597824713575
+    body_line_contact_samples: 38
+    lane_half_width_assumption_m: 1.5
+    vehicle_width_assumption_m: 1.892
+    wheelbase_assumption_m: 3.0
+    odometry_samples: 1297
+recovery040_02:
+  duration_sec: 129.70011258125305
+  status_samples: 3892
+  active_samples: 3892
+  nonfinite_or_inactive_samples: 0
+  states:
+    ACTIVE: 3892
+  modes:
+    hybrid: 3892
+  longitudinal_states:
+    ACCEL: 3016
+    COAST: 450
+    BRAKE: 426
+  maximum_speed_kph: 58.295050048828124
+  maximum_target_speed_kph: 58.0
+  maximum_cte_event:
+    elapsed_sec: 114.23333048820496
+    signed_cte_m: -0.5751434583645506
+    speed_kph: 17.067981719970703
+    target_speed_kph: 16.689987645017663
+    curvature_m_inv: 0.0819816217964422
+  brake_samples: 426
+  straight_samples: 932
+  straight_brake_samples: 0
+  direct_pedal_reversals: 18
+  steering_rate_rms_degps: 17.68262547861726
+  steering_rate_p95_degps: 51.44143242411524
+  overall:
+    samples: 3892
+    cte_rms_m: 0.14940416876687826
+    cte_p95_m: 0.3165203790877865
+    cte_max_m: 0.5751434583645506
+    heading_rms_deg: 5.757014336381764
+    steering_rms_deg: 6.373677175575645
+  straight:
+    samples: 932
+    cte_rms_m: 0.0969793942701165
+    cte_p95_m: 0.17074074347191848
+    cte_max_m: 0.2648031561510723
+    heading_rms_deg: 1.4596200795634524
+    steering_rms_deg: 0.916907340651951
+  curved:
+    samples: 2889
+    cte_rms_m: 0.1631486450805721
+    cte_p95_m: 0.333756074886061
+    cte_max_m: 0.5751434583645506
+    heading_rms_deg: 6.619155029419232
+    steering_rms_deg: 7.3712270545005225
+  high_speed:
+    samples: 257
+    cte_rms_m: 0.11113737006098101
+    cte_p95_m: 0.17569263252764106
+    cte_max_m: 0.2076085492686459
+    heading_rms_deg: 1.2672959292961625
+    steering_rms_deg: 0.5351765252194023
+  trajectory:
+    rear_center_rms_m: 0.15011203406555118
+    rear_center_p95_m: 0.24378653957598376
+    rear_center_max_m: 0.3433943049588692
+    path_heading_rms_deg: 1.8174215616753062
+    wheel_outer_offset_p95_m: 1.24645690885512
+    wheel_outer_offset_max_m: 1.4828527295595344
+    wheel_min_lane_clearance_m: 0.0171472704404656
+    minimum_wheel_clearance_event:
+      elapsed_sec: 114.12319755554199
+      x_m: -83.85603549645748
+      y_m: 338.127725510858
+      rear_offset_m: 0.03832410243725987
+      heading_error_deg: 3.421521636388198
+      wheel_clearance_m: 0.0171472704404656
+    wheel_line_contact_samples: 0
+    body_corner_offset_p95_m: 1.4417548496400772
+    body_corner_offset_max_m: 1.7273173041323546
+    body_min_lane_clearance_m: -0.22731730413235463
+    body_line_contact_samples: 28
+    lane_half_width_assumption_m: 1.5
+    vehicle_width_assumption_m: 1.892
+    wheelbase_assumption_m: 3.0
+    odometry_samples: 1297
+pp_cte055_01:
+  duration_sec: 129.7668297290802
+  status_samples: 3894
+  active_samples: 3894
+  nonfinite_or_inactive_samples: 0
+  states:
+    ACTIVE: 3894
+  modes:
+    hybrid: 3894
+  longitudinal_states:
+    ACCEL: 3010
+    COAST: 467
+    BRAKE: 417
+  maximum_speed_kph: 58.292633056640625
+  maximum_target_speed_kph: 58.0
+  maximum_cte_event:
+    elapsed_sec: 114.36670708656311
+    signed_cte_m: -0.5796873384809527
+    speed_kph: 16.4036075592041
+    target_speed_kph: 15.942668553279017
+    curvature_m_inv: 0.10955677967110411
+  brake_samples: 417
+  straight_samples: 943
+  straight_brake_samples: 0
+  direct_pedal_reversals: 18
+  steering_rate_rms_degps: 17.404486046823042
+  steering_rate_p95_degps: 49.472499832701324
+  overall:
+    samples: 3894
+    cte_rms_m: 0.14725090203269578
+    cte_p95_m: 0.31563551665105377
+    cte_max_m: 0.5796873384809527
+    heading_rms_deg: 5.737403726169457
+    steering_rms_deg: 6.374975946424221
+  straight:
+    samples: 943
+    cte_rms_m: 0.09577510375505913
+    cte_p95_m: 0.17418534286122098
+    cte_max_m: 0.2672411592451139
+    heading_rms_deg: 1.4564046861536815
+    steering_rms_deg: 0.9618114713872973
+  curved:
+    samples: 2850
+    cte_rms_m: 0.16021267448597368
+    cte_p95_m: 0.3383250149493028
+    cte_max_m: 0.5796873384809527
+    heading_rms_deg: 6.641767508831458
+    steering_rms_deg: 7.417264669783928
+  high_speed:
+    samples: 287
+    cte_rms_m: 0.12220958599614189
+    cte_p95_m: 0.21884346845051555
+    cte_max_m: 0.29522522139717644
+    heading_rms_deg: 1.312083023385108
+    steering_rms_deg: 0.8780902766948315
+  trajectory:
+    rear_center_rms_m: 0.1477449575897684
+    rear_center_p95_m: 0.24731362490255843
+    rear_center_max_m: 0.32381630755629404
+    path_heading_rms_deg: 1.8132192147195547
+    wheel_outer_offset_p95_m: 1.24754765625271
+    wheel_outer_offset_max_m: 1.4627774056540224
+    wheel_min_lane_clearance_m: 0.03722259434597763
+    minimum_wheel_clearance_event:
+      elapsed_sec: 114.34454131126404
+      x_m: -81.74704508594004
+      y_m: 339.7434245431796
+      rear_offset_m: -0.07934064046351545
+      heading_error_deg: 4.201939210416644
+      wheel_clearance_m: 0.03722259434597763
+    wheel_line_contact_samples: 0
+    body_corner_offset_p95_m: 1.4259244463656702
+    body_corner_offset_max_m: 1.7785123119391526
+    body_min_lane_clearance_m: -0.2785123119391526
+    body_line_contact_samples: 28
+    lane_half_width_assumption_m: 1.5
+    vehicle_width_assumption_m: 1.892
+    wheelbase_assumption_m: 3.0
+    odometry_samples: 1298
+recovery060_01:
+  duration_sec: 129.70000505447388
+  status_samples: 3892
+  active_samples: 3892
+  nonfinite_or_inactive_samples: 0
+  states:
+    ACTIVE: 3892
+  modes:
+    hybrid: 3892
+  longitudinal_states:
+    ACCEL: 3038
+    COAST: 420
+    BRAKE: 434
+  maximum_speed_kph: 58.28716735839844
+  maximum_target_speed_kph: 58.0
+  maximum_cte_event:
+    elapsed_sec: 20.833346605300903
+    signed_cte_m: -0.5509358667445381
+    speed_kph: 16.962921524047854
+    target_speed_kph: 16.222846149124667
+    curvature_m_inv: 0.07642788246760558
+  brake_samples: 434
+  straight_samples: 940
+  straight_brake_samples: 0
+  direct_pedal_reversals: 16
+  steering_rate_rms_degps: 17.31038793037781
+  steering_rate_p95_degps: 48.64370930128818
+  overall:
+    samples: 3892
+    cte_rms_m: 0.1523501887577149
+    cte_p95_m: 0.32944367730052687
+    cte_max_m: 0.5509358667445381
+    heading_rms_deg: 5.7635878703575445
+    steering_rms_deg: 6.388907835846182
+  straight:
+    samples: 940
+    cte_rms_m: 0.09845222666443762
+    cte_p95_m: 0.174093531837346
+    cte_max_m: 0.2517387711246408
+    heading_rms_deg: 1.476600008387983
+    steering_rms_deg: 0.9816976631855572
+  curved:
+    samples: 2854
+    cte_rms_m: 0.16680320206124924
+    cte_p95_m: 0.3464296327756644
+    cte_max_m: 0.5509358667445381
+    heading_rms_deg: 6.665876917792328
+    steering_rms_deg: 7.428480213299517
+  high_speed:
+    samples: 273
+    cte_rms_m: 0.11461674492819278
+    cte_p95_m: 0.19145463295988355
+    cte_max_m: 0.20943110212049085
+    heading_rms_deg: 1.3277939952398752
+    steering_rms_deg: 0.6433834859208151
+  trajectory:
+    rear_center_rms_m: 0.14881723372643338
+    rear_center_p95_m: 0.24617199447474042
+    rear_center_max_m: 0.34864723391802477
+    path_heading_rms_deg: 1.8251393094999573
+    wheel_outer_offset_p95_m: 1.257525311834045
+    wheel_outer_offset_max_m: 1.448129492683737
+    wheel_min_lane_clearance_m: 0.05187050731626308
+    minimum_wheel_clearance_event:
+      elapsed_sec: 20.832631826400757
+      x_m: -128.36272833822295
+      y_m: -327.3262184802443
+      rear_offset_m: -0.12548178559279488
+      heading_error_deg: 5.566689976166311
+      wheel_clearance_m: 0.05187050731626308
+    wheel_line_contact_samples: 0
+    body_corner_offset_p95_m: 1.450985059838334
+    body_corner_offset_max_m: 1.7273419005776063
+    body_min_lane_clearance_m: -0.22734190057760628
+    body_line_contact_samples: 34
+    lane_half_width_assumption_m: 1.5
+    vehicle_width_assumption_m: 1.892
+    wheelbase_assumption_m: 3.0
+    odometry_samples: 1296
+recovery060_02:
+  duration_sec: 129.76643705368042
+  status_samples: 3894
+  active_samples: 3894
+  nonfinite_or_inactive_samples: 0
+  states:
+    ACTIVE: 3894
+  modes:
+    hybrid: 3894
+  longitudinal_states:
+    ACCEL: 3040
+    COAST: 397
+    BRAKE: 457
+  maximum_speed_kph: 58.28400192260742
+  maximum_target_speed_kph: 58.0
+  maximum_cte_event:
+    elapsed_sec: 111.40009665489197
+    signed_cte_m: -0.5539795595403719
+    speed_kph: 16.416640090942384
+    target_speed_kph: 16.86505714164346
+    curvature_m_inv: 0.03281653391867377
+  brake_samples: 457
+  straight_samples: 955
+  straight_brake_samples: 0
+  direct_pedal_reversals: 18
+  steering_rate_rms_degps: 17.074459274402205
+  steering_rate_p95_degps: 47.773051988064815
+  overall:
+    samples: 3894
+    cte_rms_m: 0.1523914043803056
+    cte_p95_m: 0.33418709987654
+    cte_max_m: 0.5539795595403719
+    heading_rms_deg: 5.789703697847477
+    steering_rms_deg: 6.380658330698649
+  straight:
+    samples: 955
+    cte_rms_m: 0.09451697235571926
+    cte_p95_m: 0.16974922855903374
+    cte_max_m: 0.2823665969656256
+    heading_rms_deg: 1.4496161697893188
+    steering_rms_deg: 0.889428222608366
+  curved:
+    samples: 2846
+    cte_rms_m: 0.16822556010688827
+    cte_p95_m: 0.34927225358715797
+    cte_max_m: 0.5539795595403719
+    heading_rms_deg: 6.711457872623864
+    steering_rms_deg: 7.438813286223737
+  high_speed:
+    samples: 246
+    cte_rms_m: 0.11310745099533959
+    cte_p95_m: 0.18751163906638818
+    cte_max_m: 0.23010615402158804
+    heading_rms_deg: 1.308401324349035
+    steering_rms_deg: 0.6538175178122837
+  trajectory:
+    rear_center_rms_m: 0.14776830076801456
+    rear_center_p95_m: 0.23881103584841118
+    rear_center_max_m: 0.31461631935509216
+    path_heading_rms_deg: 1.8403590181709695
+    wheel_outer_offset_p95_m: 1.2608072901867589
+    wheel_outer_offset_max_m: 1.476547784099306
+    wheel_min_lane_clearance_m: 0.023452215900694018
+    minimum_wheel_clearance_event:
+      elapsed_sec: 111.39634609222412
+      x_m: -95.99695642013103
+      y_m: 325.0908102700487
+      rear_offset_m: 0.018044495848027472
+      heading_error_deg: 6.197457392095859
+      wheel_clearance_m: 0.023452215900694018
+    wheel_line_contact_samples: 0
+    body_corner_offset_p95_m: 1.456090454824433
+    body_corner_offset_max_m: 1.666679693366186
+    body_min_lane_clearance_m: -0.16667969336618604
+    body_line_contact_samples: 31
+    lane_half_width_assumption_m: 1.5
+    vehicle_width_assumption_m: 1.892
+    wheelbase_assumption_m: 3.0
+    odometry_samples: 1299
+latacc16:
+  duration_sec: 129.7667372226715
+  status_samples: 3894
+  active_samples: 3894
+  nonfinite_or_inactive_samples: 0
+  states:
+    ACTIVE: 3894
+  modes:
+    hybrid: 3894
+  longitudinal_states:
+    ACCEL: 3042
+    COAST: 418
+    BRAKE: 434
+  maximum_speed_kph: 58.303550720214844
+  maximum_target_speed_kph: 58.0
+  maximum_cte_event:
+    elapsed_sec: 113.43325400352478
+    signed_cte_m: -0.5925751828835297
+    speed_kph: 15.913941764831543
+    target_speed_kph: 16.414633622466646
+    curvature_m_inv: 0.0368572616365236
+  brake_samples: 434
+  straight_samples: 909
+  straight_brake_samples: 0
+  direct_pedal_reversals: 19
+  steering_rate_rms_degps: 17.90194296705893
+  steering_rate_p95_degps: 52.2961588210177
+  overall:
+    samples: 3894
+    cte_rms_m: 0.1548085118285363
+    cte_p95_m: 0.3377282223337024
+    cte_max_m: 0.5925751828835297
+    heading_rms_deg: 5.857382116758709
+    steering_rms_deg: 6.448345874038971
+  straight:
+    samples: 909
+    cte_rms_m: 0.09429939056431678
+    cte_p95_m: 0.16704307464184293
+    cte_max_m: 0.21152812009575017
+    heading_rms_deg: 1.4707837082084527
+    steering_rms_deg: 0.9181267836113737
+  curved:
+    samples: 2845
+    cte_rms_m: 0.17084381459241035
+    cte_p95_m: 0.36435818375699836
+    cte_max_m: 0.5925751828835297
+    heading_rms_deg: 6.791093684232891
+    steering_rms_deg: 7.517371303899015
+  high_speed:
+    samples: 236
+    cte_rms_m: 0.11026452535290211
+    cte_p95_m: 0.16704307464184293
+    cte_max_m: 0.19502211232990227
+    heading_rms_deg: 1.3062689760877249
+    steering_rms_deg: 0.40726801006454155
+  trajectory:
+    rear_center_rms_m: 0.14988697017160466
+    rear_center_p95_m: 0.24214847268777237
+    rear_center_max_m: 0.34864723391802477
+    path_heading_rms_deg: 1.851472666770677
+    wheel_outer_offset_p95_m: 1.266134669428868
+    wheel_outer_offset_max_m: 1.5223424007907713
+    wheel_min_lane_clearance_m: -0.022342400790771322
+    minimum_wheel_clearance_event:
+      elapsed_sec: 113.40406489372253
+      x_m: -95.38816860807128
+      y_m: 325.81662929197773
+      rear_offset_m: 0.08808431077710717
+      heading_error_deg: 7.202559242002428
+      wheel_clearance_m: -0.022342400790771322
+    wheel_line_contact_samples: 1
+    body_corner_offset_p95_m: 1.457532055643099
+    body_corner_offset_max_m: 1.7109606256348147
+    body_min_lane_clearance_m: -0.21096062563481466
+    body_line_contact_samples: 44
+    lane_half_width_assumption_m: 1.5
+    vehicle_width_assumption_m: 1.892
+    wheelbase_assumption_m: 3.0
+    odometry_samples: 1298

@@ -2,6 +2,8 @@
 global_path_topic: /global_path
 local_path_topic: /local_path
 localization_topic: /localization/pose
+lookahead_point_topic: /control/lookahead_point
+stanley_projection_point_topic: /control/stanley_projection_point
 marker_topic: /visualization/path
 frame_id: map
 base_frame_id: base_link
@@ -10,6 +12,10 @@ local_line_width: 0.35
 vehicle_origin_diameter: 0.30
 vehicle_origin_label_height: 0.35
 nearest_point_diameter: 0.7
+lookahead_point_diameter: 0.8
+stanley_projection_point_diameter: 0.65
+# 제어기가 멈추면 마지막 LD point가 자동으로 사라지는 시간.
+lookahead_marker_lifetime_sec: 0.3
 show_global_path_start: true
 global_start_diameter: 1.4
 global_start_text_height: 1.0

@@ -118,6 +118,7 @@ class LocalizationFusionNode {
     current.header.frame_id = map_frame_id_;
     gps_ = current;
     has_gps_ = true;
+    gps_pending_ = true;
     publishIfReady();
   }
 
@@ -148,6 +149,7 @@ class LocalizationFusionNode {
     imu_.header.stamp = messageStamp(imu_.header.stamp);
     imu_.header.frame_id = imu_frame_id_;
     has_imu_ = true;
+    publishIfReady();
   }
 
   bool observationsAreCurrent() const {
@@ -170,7 +172,8 @@ class LocalizationFusionNode {
   }
 
   void publishIfReady() {
-    if (!has_gps_ || !has_imu_ || !observationsAreCurrent()) {
+    if (!gps_pending_ || !has_gps_ || !has_imu_ ||
+        !observationsAreCurrent()) {
       return;
     }
 
@@ -191,6 +194,7 @@ class LocalizationFusionNode {
     pose.pose.position = gps_.point;
     pose.pose.orientation = orientation;
     pose_publisher_.publish(pose);
+    gps_pending_ = false;
 
     if (velocity.valid) {
       nav_msgs::Odometry odometry;
@@ -241,6 +245,7 @@ class LocalizationFusionNode {
   sensor_msgs::Imu imu_;
   bool has_gps_ = false;
   bool has_imu_ = false;
+  bool gps_pending_ = false;
 };
 
 }  // namespace
@@ -250,7 +255,7 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "localization_fusion");
   try {
     morai_localization::LocalizationFusionNode fusion;
-    ROS_INFO("direct GPS/IMU localization fusion is running (no filter)");
+    ROS_INFO("GPS/IMU pose fusion is direct; velocity LPF is configurable");
     ros::spin();
   } catch (const std::exception& error) {
     ROS_FATAL_STREAM("failed to start localization fusion: "

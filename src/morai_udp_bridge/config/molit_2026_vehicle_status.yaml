@@ -1,0 +1,11 @@
+competition_vehicle_status_receiver_node:
+  # MORAI Network Settings의 Competition Vehicle Status destination과 일치.
+  bind_ip: 0.0.0.0
+  listen_port: 9094
+  allowed_source_ip: ""
+  receive_buffer_bytes: 1048576
+  status_topic: /vehicle/competition_status
+  diagnostics_topic: /diagnostics
+  stale_timeout_sec: 0.25
+  maximum_publish_hz: 50.0
+  diagnostics_period_sec: 1.0

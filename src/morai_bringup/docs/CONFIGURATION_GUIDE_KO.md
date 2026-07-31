@@ -528,7 +528,119 @@ MORAI IONIQ 5의 rear axle 중앙 원점이고 `base_footprint`는 그 원점의
 투영점이다. 두 frame의 z 간격은 `rear_axle_height_m`이다. 차종이나 MORAI 차량
 모델을 바꾸면 같은 원점 계약이 유지되는지 다시 확인한다.
 
-## 12. 실행 방법
+## 12. Competition Status와 자율 제어 설정
+
+Competition Vehicle Status는 Sensor preset이 아니라 MORAI Network Settings에서
+추가한다.
+
+```text
+Publisher: CompetitioninfoPublisher / Competition Vehicle Status
+Destination IP: ROS PC 주소
+Destination Port: 9094
+```
+
+ROS 수신 설정은 다음 파일이다.
+
+```text
+morai_udp_bridge/config/molit_2026_vehicle_status.yaml
+```
+
+주요 변경값은 `listen_port`, `status_topic`, `stale_timeout_sec`,
+`allowed_source_ip`다. 제어기 PID feedback은
+`/vehicle/competition_status.velocity_x_mps`만 사용한다.
+
+제어기 설정은 다음 파일에서 바꾼다.
+
+```text
+morai_path_tracking/config/molit_2026_path_tracking.yaml
+```
+
+| 목적 | 파라미터 |
+| --- | --- |
+| 횡제어기 선택 | `lateral_controller`: `pure_pursuit`, `stanley`, `hybrid` |
+| Stanley 튜닝 | `stanley_gain`, `stanley_softening_speed_mps`, `stanley_heading_error_gain`, 곡률 feedforward/yaw-rate damping/조향 변화율 |
+| Hybrid 튜닝 | IMM 확률·전이, PP 횡오차 보정, candidate conflict 및 `hybrid_cross_track_recovery_full_scale_m` |
+| 직선 최고 목표 속도 | `target_speed_kph` (km/h) |
+| 곡선 속도 제한 | `minimum_curve_speed_kph`, `maximum_lateral_acceleration_mps2`, `curvature_speed_reduction_gain_m` |
+| 곡률 추정 | `curvature_preview_distance_m`, `curvature_sample_spacing_m`, `curvature_epsilon_m_inv` |
+| 커브 접근 감속 | `curve_approach_deceleration_mps2` |
+| 목표 속도 변화율 | `target_speed_acceleration_limit_mps2`, `curve_target_speed_acceleration_limit_mps2`, `target_speed_deceleration_limit_mps2` |
+| PID 튜닝 | `speed_kp`, `speed_ki`, `speed_kd`, `speed_accel_feedforward_gain_per_mps`, 적분/deadband/output limit |
+| 타력·제동 경계 | `speed_coast_overspeed_kph`, `speed_brake_overspeed_kph`, `hard_brake_activation_speed_kph`, `minimum_hard_brake_command` |
+| 속도 필터 | `speed_filter_time_constant_sec`, 기본 `0.0` |
+| LD 조정 | `lookahead_base_m`, `lookahead_speed_gain_sec`, `lookahead_curvature_gain_m`, `lookahead_curvature_preview_distance_m`, min/max |
+| 입력 freshness | path/odometry/status timeout |
+| 안전 제동 | `safe_brake_command` |
+| 출력 관측 | `controller_status_topic`, `lookahead_point_topic` |
+
+Config의 목표·최소 곡선 속도만 km/h를 사용한다. 제어기 내부와
+`ControllerStatus`의 `configured_target_speed_mps`,
+`curvature_speed_limit_mps`, `target_speed_mps`는 m/s다. 전방 preview
+경로를 2 m 간격으로 재샘플링하고 세 점 곡률과 커브까지 거리를 계산한다.
+커브 지점 속도는 `v_lateral =
+sqrt(maximum_lateral_acceleration_mps2 / curvature)`를 먼저 구한 뒤
+`v_lateral / (1 + curvature_speed_reduction_gain_m * curvature)`로
+연속 보정한다. 현재 허용속도는
+`sqrt(curve_speed^2 + 2 * curve_approach_deceleration_mps2 * distance)`다.
+LD는 별도의 8 m 근거리 곡률만 사용한다.
+
+기본 `lateral_controller`는 `hybrid`다. standalone 비교 시
+`pure_pursuit` 또는 `stanley`로 바꾸고 노드를 재시작한다. Stanley 기본
+gain `2.0`은 58 km/h에서 횡오차 1 m일 때 약 6.3 deg의 보정 조향을 만든다.
+softening/minimum speed는 각각 2.0/1.0 m/s이고 heading gain은 0.6,
+조향 변화율은 60 deg/s다. 30 Hz에서는 조향이 주기당 최대 2 deg 변한다.
+Hybrid는 PP 기하 조향과 Stanley 횡오차 복귀를 IMM 확률로 혼합한다.
+두 후보 부호가 급커브에서 충돌할 때 PP 우선 guard를 적용하고, PP가 올바른
+CTE 복귀 방향에서 Stanley보다 강한 경우 CTE 0.25–0.50 m 사이에서 PP
+비중을 연속적으로 높인다.
+
+현재 기본값은 직선 `58 km/h`, 곡선 최저 `12 km/h`, 허용 횡가속도
+`1.8 m/s²`, 추가 감속 gain `5.0 m`다. 반경 50/25/15/10 m 곡선의 제한
+속도는 각각 약 31.0/20.1/14.0/12.0 km/h다. 속도 곡률 preview는 45 m이고
+path manager는 거리 기준 100 m local path를 제공한다. LD는 4–16 m 범위이며
+58 km/h 직선에서는 상한 16 m다.
+
+목표속도 상승/하강률은 2.0/5.0 m/s²이며, 전방 곡률이 속도를 제한하는 동안
+재가속은 0.2 m/s²로 제한한다. 첫 고속 PID 값은
+`kp=0.18`, `ki=0.02`, `kd=0.0`, 적분 한계 `1.0`, deadband `0.10 m/s`다.
+Competition Status가 제어 주기와 다른 간격으로 들어올 때 발생하는 D항
+펄스를 피하기 위해 기본 D항은 끈다. 목표보다 deadband 이상 빠르면
+feedforward를 차단하고 과속 중 accel 출력을 금지한다.
+목표속도 비례 accel feedforward gain은 `0.008`이며 58 km/h에서 약 0.129를
+더한다. accel/brake 상한은 0.40/0.60을 유지한다. 목표보다 0.2 km/h
+초과하면 먼저 타력주행하고, 1.8 km/h 이상 초과할 때 정상 PID 제동을
+허용한다. 실차 속도가 59 km/h에 도달하면 목표속도와 무관하게 최소 0.25의
+독립 안전제동을 즉시 적용한다.
+
+커브 접근 감속 능력 가정은 기본 `2.0 m/s²`다. 이 값은 brake 크기가 아니며
+감속이 이르면 올리고 늦으면 내린다. 낮출수록 감속 시작이 앞당겨진다.
+완만한 커브가 너무 느리면 `maximum_lateral_acceleration_mps2`를 올린다.
+완만한 커브는 유지하면서 고곡률에서 더 줄이려면
+`curvature_speed_reduction_gain_m`을 올리고, 과하면 내린다. `0.0`이면
+추가 감속 보정을 사용하지 않는다.
+직선에서 목표속도보다 낮게 정착하면 feedforward gain을 올리고 오버슈트가
+크면 내린다. 상태 토픽의
+`speed_limiting_curve_distance_m`, `preview_curvature_m_inv`,
+`lookahead_curvature_m_inv`로 각각 감속 거리, 속도 곡률, LD 곡률을 확인한다.
+`speed_overshoot_mps`와 `longitudinal_state`로 타력/제동 상태를 확인한다.
+Stanley/Hybrid 모드에서는 `lateral_controller`, `cross_track_error_m`,
+`heading_error_rad`와 hybrid 확률·effective weight·conflict/recovery 필드도
+함께 확인한다. Stanley에는 Pure Pursuit식 LD가 없다.
+대신 `/control/lookahead_point`에는 전륜 중심에서 경로로 내린 최근접
+투영점을 발행하며 RViz에는 연결선 없이 연두색 점 하나로 표시한다.
+`ControllerStatus.lookahead_distance_m`은 Stanley 모드에서 0이다.
+
+UDP 송신과 optional gear 변경은
+`morai_udp_bridge/config/molit_2026_control.yaml`에서 설정한다. 대회 서버가
+기어를 관리하므로 `gear_command_enabled` 기본값은 `false`다. 활성화할 경우
+정지 속도, Status timeout, accel/brake interlock 파라미터를 함께 검토한다.
+
+추종점 시각화 크기와 lifetime은
+`morai_visualization/config/path_visualizer.yaml`의
+`lookahead_point_diameter`, `lookahead_marker_lifetime_sec`에서 바꾼다.
+연결선은 표시하지 않는다.
+
+## 13. 실행 방법
 
 새 터미널마다 환경을 불러온다.
 
@@ -561,9 +673,15 @@ roslaunch morai_bringup molit_2026_path_manager.launch
 roslaunch morai_bringup molit_2026_stack.launch
 ```
 
-## 13. 설정 변경 후 확인 순서
+자율 경로 추종 전체 기본 실행:
 
-### 13.1 빌드
+```bash
+roslaunch morai_bringup molit_2026_autonomous.launch
+```
+
+## 14. 설정 변경 후 확인 순서
+
+### 14.1 빌드
 
 YAML과 launch 값만 바꾼 경우 launch 재시작만으로 반영되는 경우가 많다. 하지만
 패키지 구조, CMake, C++ 코드를 수정했거나 확실히 검증하려면 다시 빌드한다.
@@ -575,7 +693,7 @@ catkin_make
 source devel/setup.bash
 ```
 
-### 13.2 테스트
+### 14.2 테스트
 
 ```bash
 cd ~/catkin_ws
@@ -583,7 +701,7 @@ catkin_make run_tests
 catkin_test_results build/test_results --verbose
 ```
 
-### 13.3 토픽 확인
+### 14.3 토픽 확인
 
 ```bash
 rostopic list
@@ -593,6 +711,8 @@ rostopic hz /image/right/compressed
 rostopic hz /lidar3D
 rostopic hz /sensors/gps/fix
 rostopic hz /sensors/imu/data
+rostopic echo /vehicle/competition_status
+rostopic echo /control/controller_status
 ```
 
 GPS local projection을 활성화했다면:
@@ -605,7 +725,7 @@ rostopic echo /localization/odometry
 rosrun tf tf_echo map base_link
 ```
 
-### 13.4 Diagnostics 확인
+### 14.4 Diagnostics 확인
 
 ```bash
 rostopic echo /diagnostics
@@ -640,7 +760,7 @@ sysctl net.core.rmem_max
 UDP receive-buffer 최대 허용값만 높이며, 각 socket은 여전히 bridge 설정의
 `receive_buffer_bytes`만큼만 요청한다.
 
-### 13.5 영상과 PointCloud 확인
+### 14.5 영상과 PointCloud 확인
 
 ```bash
 rqt_image_view
@@ -668,7 +788,7 @@ roslaunch morai_bringup path_lidar.launch
 `Decay Time=0.0`은 최신 cloud를 다음 입력까지 유지해 낮거나 변동하는 발행
 주기에서도 빈 화면 구간이 생기지 않도록 한다.
 
-## 14. 문제가 생겼을 때 확인할 것
+## 15. 문제가 생겼을 때 확인할 것
 
 ### Camera가 나오지 않음
 
@@ -720,12 +840,21 @@ VLP-16 자체의 calibration 실패를 뜻하지 않는다. 함께 `Number of la
 5. `config_verified: true`인지 확인
 6. GPS/IMU frame과 timestamp 차이가 localization config 허용값 이내인지 확인
 
-## 15. 변경 전 체크리스트
+### Competition Status가 나오지 않음
+
+1. MORAI Network Settings에 Competition Vehicle Status를 추가했는지 확인
+2. Destination IP와 `listen_port: 9094`가 일치하는지 확인
+3. `ss -lunp | grep :9094`로 receiver bind 확인
+4. `/diagnostics`의 `competition_vehicle_status` parse error 확인
+5. `vehicle_control` status receiver를 동시에 실행하지 않았는지 확인
+
+## 16. 변경 전 체크리스트
 
 - 전달받은 원본 파일을 별도 보존했는가?
 - MORAI JSON과 ROS YAML을 함께 수정했는가?
 - UDP destination IP가 ROS PC를 가리키는가?
 - MORAI destination port와 ROS 수신 port가 같은가?
+- Competition Vehicle Status `9094`가 연결되어 있는가?
 - 센서 장착 위치와 TF 값이 같은가?
 - 확인되지 않은 TF를 `true`로 바꾸지 않았는가?
 - 새 맵의 CRS와 원점을 공식 `global_info.json`으로 확인했는가?

@@ -4,7 +4,7 @@ MORAI SIM의 센서 데이터를 ROS1으로 받아 차량 위치와 경로를 �
 검증하기 위한 Team Stier 워크스페이스다.
 
 현재 구현 범위는 **센서 수신, 차량·센서 TF, GPS+IMU localization,
-전역·지역경로 발행, Pure Pursuit/PID 자율 경로 추종, RViz 시각화, 조이스틱
+전역·지역경로 발행, Pure Pursuit/Stanley 선택형 자율 경로 추종, RViz 시각화, 조이스틱
 수동 제어**다.
 
 ## 현재 구성
@@ -18,7 +18,7 @@ MORAI SIM의 센서 데이터를 ROS1으로 받아 차량 위치와 경로를 �
 | 차량 | 2023 Hyundai IONIQ 5 |
 | 차량 원점 | 뒷바퀴 축 중앙 |
 | Localization | noise off 환경의 GPS XY + IMU yaw 직접 결합 |
-| Local path | 현재 위치부터 전방 20 pose, 약 9.5 m |
+| Local path | 현재 위치부터 전방 100 m, 일반적으로 약 201 pose |
 
 ## 아키텍처
 
@@ -30,25 +30,30 @@ flowchart LR
     UDP --> RAW["/image/*<br/>/sensors/gps/fix<br/>/sensors/imu/data"]
     RAW --> LOC["morai_localization"]
     LOC --> POSE["/localization/pose"]
-    LOC --> ODOM["/localization/odometry<br/>velocity"]
+    LOC --> ODOM["/localization/odometry<br/>pose"]
     POSE --> PATH["morai_path_manager"]
     ROUTE["전역경로 파일"] --> PATH
     PATH --> PATH_TOPIC["/global_path<br/>/local_path"]
-    ODOM --> TRACK["morai_path_tracking<br/>Pure Pursuit/PID"]
+    ODOM --> TRACK["morai_path_tracking<br/>Pure Pursuit/Stanley + PID"]
     PATH_TOPIC --> TRACK
+    SIM3 -->|Competition Vehicle Status UDP :9094| STATUS["morai_udp_bridge<br/>status receiver"]
+    STATUS --> COMP["/vehicle/competition_status<br/>velocity_x · gear"]
+    COMP --> TRACK
     TRACK --> CMD["/control/actuator_command"]
+    TRACK --> DEBUG["/control/controller_status<br/>/control/lookahead_point"]
     CMD --> AUTO_UDP["morai_udp_bridge<br/>control sender UDP :9093"]
     AUTO_UDP --> SIM3["MORAI Ego 차량"]
 
     DESC["ioniq5_description<br/>URDF · sensor TF"] --> VIZ["morai_visualization"]
     POSE --> VIZ
     PATH_TOPIC --> VIZ
+    DEBUG --> VIZ
     VEL --> CLOUD["/lidar3D"]
     CLOUD --> VIZ
 
     JOY["CYVOX MX"] -->|/joy| CTRL["vehicle_control"]
     CTRL -->|수동 Ego Ctrl Cmd UDP :9093| SIM3
-    SIM3 -->|Ego Vehicle Status UDP :9094| CTRL
+    SIM3 -->|수동 Ego Vehicle Status UDP :9094| CTRL
     BRINGUP["morai_bringup"] -. "launch 조합" .-> UDP
     BRINGUP -.-> LOC
     BRINGUP -.-> PATH
@@ -74,10 +79,10 @@ map
 | 패키지 | 책임 |
 | --- | --- |
 | [`ioniq5_description`](src/ioniq5_description/README.md) | 차량 제원, 센서 장착값, URDF와 고정 TF |
-| [`morai_udp_bridge`](src/morai_udp_bridge/README.md) | Camera/GPS/IMU UDP 수신·ROS 변환과 자율 제어 UDP 송신/watchdog |
+| [`morai_udp_bridge`](src/morai_udp_bridge/README.md) | Camera/GPS/IMU/Competition Status UDP 수신과 자율 제어 UDP 송신/watchdog |
 | [`morai_localization`](src/morai_localization/README.md) | GPS 좌표 투영, IMU 정규화, pose·TF와 odometry velocity 추정 |
-| [`morai_path_manager`](src/morai_path_manager/README.md) | 전역경로 로드와 전방 20 pose local path |
-| [`morai_path_tracking`](src/morai_path_tracking/README.md) | odometry velocity와 local path의 Pure Pursuit/PID 자율 제어 |
+| [`morai_path_manager`](src/morai_path_manager/README.md) | 전역경로 로드와 전방 100 m local path |
+| [`morai_path_tracking`](src/morai_path_tracking/README.md) | localization pose, Competition x속도와 local path의 선택형 횡제어/PID 자율 제어 |
 | [`morai_visualization`](src/morai_visualization/README.md) | Path/LiDAR RViz profile과 디버그 marker |
 | [`morai_bringup`](src/morai_bringup/README.md) | 위 패키지의 launch와 config 조합 |
 | [`vehicle_control`](src/vehicle_control/README.md) | CYVOX 조이스틱 입력과 MORAI 차량 제어 UDP 송신 |
@@ -116,8 +121,8 @@ MORAI에서 불러온다.
 | 전역경로 | [`2026_molit_comp_global_path.txt`](src/morai_path_manager/map/R-KR_PG_K-City_2025/2026_molit_comp_global_path.txt) | ROS 패키지에서 직접 사용 |
 
 현재 주요 UDP port는 Camera `9291/9293/9295`, GPS `9301`, IMU `9303`,
-LiDAR `2368`이다. MORAI Sensor Edit의 Destination IP는 ROS PC 주소로,
-Destination Port는 위 값과 맞춘다.
+LiDAR `2368`, Competition Vehicle Status 수신 `9094`, Ego Ctrl Cmd 송신
+`9093`이다. MORAI의 각 Destination IP/Port를 해당 YAML과 맞춘다.
 
 ## 실행
 
@@ -147,18 +152,21 @@ roslaunch morai_bringup molit_2026_path_manager.launch
 roslaunch morai_bringup molit_2026_stack.launch
 ```
 
-자율 경로 추종 실행(LiDAR 없이):
+자율 경로 추종 기본 실행:
 
 ```bash
-roslaunch morai_bringup molit_2026_autonomous.launch use_lidar:=false
+roslaunch morai_bringup molit_2026_autonomous.launch
 ```
 
-자율 launch는 Pure Pursuit/PID와 `/control/actuator_command` UDP sender를
-포함하며 RViz는 별도로 실행한다. GPS와 IMU sensor noise는 꺼진 상태를
-전제로 한다. 기본 목표 속도는 `3.0 m/s`이고 controller 게인, 목표 속도,
-안전 임계값은 `morai_path_tracking/config/molit_2026_pure_pursuit.yaml`에서,
-UDP sender 설정은 `morai_udp_bridge/config/molit_2026_control.yaml`에서
-튜닝한다.
+자율 launch는 기본 LiDAR를 포함하고, Competition Vehicle Status receiver,
+선택형 Pure Pursuit/Stanley 횡제어와 PID, `/control/actuator_command` UDP sender를 실행한다. RViz는
+별도 실행한다. 기본 직선 목표 속도는 `58.0 km/h`이며 실제 PID 피드백은
+`/vehicle/competition_status.velocity_x_mps`다.
+
+MORAI Network Settings에서 Competition Vehicle Status Destination IP를 ROS PC,
+Destination Port를 `9094`로 설정한다. 수신 설정은
+`morai_udp_bridge/config/molit_2026_vehicle_status.yaml`, controller 설정은
+`morai_path_tracking/config/molit_2026_path_tracking.yaml`에서 변경한다.
 
 MORAI UDP `9093`에는 송신자를 하나만 실행한다. 따라서 자율 sender와 수동
 `vehicle_control` sender를 절대로 동시에 실행하지 않는다. `vehicle_control`은
@@ -201,12 +209,15 @@ roslaunch vehicle_control cyvox_morai.launch
 | GPS local 좌표 | `/localization/gps/local_point` | `geometry_msgs/PointStamped` |
 | 최종 위치·yaw | `/localization/pose` | `geometry_msgs/PoseStamped` |
 | 최종 odometry | `/localization/odometry` | `nav_msgs/Odometry` |
+| 자율 Competition 차량 상태 | `/vehicle/competition_status` | `morai_udp_bridge/CompetitionVehicleStatus` |
 | 전역경로 | `/global_path` | `nav_msgs/Path` |
 | 제어용 부분경로 | `/local_path` | `nav_msgs/Path` |
 | 자율 차량 명령 | `/control/actuator_command` | `morai_udp_bridge/ActuatorCommand` |
+| 자율 제어 상태·안전 사유 | `/control/controller_status` | `morai_path_tracking/ControllerStatus` |
+| 횡제어 추종점(Pure Pursuit LD / Stanley 전륜 투영점) | `/control/lookahead_point` | `geometry_msgs/PointStamped` |
 | Path marker | `/visualization/path` | `visualization_msgs/MarkerArray` |
 | 조이스틱 입력 | `/joy` | `sensor_msgs/Joy` |
-| MORAI 차량 상태 | `/vehicle/status` | `vehicle_control/VehicleStatus` |
+| 수동 제어용 MORAI 차량 상태 | `/vehicle/status` | `vehicle_control/VehicleStatus` |
 | 수동 차량 명령 | `/vehicle/manual_command` | `vehicle_control/VehicleCommand` |
 | MORAI 초기화 요청 | `/vehicle/reset_request` | `std_msgs/Empty` |
 | 센서 상태 | `/diagnostics` | `diagnostic_msgs/DiagnosticArray` |
@@ -219,10 +230,11 @@ roslaunch vehicle_control cyvox_morai.launch
 | 센서 위치·frame·카메라 FOV | `ioniq5_description/config/molit_2026_sensor_mounts.yaml` |
 | MORAI 센서 preset | `ioniq5_description/config/morai_presets/0725demo.json` |
 | UDP IP·port·topic | `morai_udp_bridge/config/molit_2026*.yaml` |
+| Competition Status UDP 수신 | `morai_udp_bridge/config/molit_2026_vehicle_status.yaml` |
 | UTM offset·yaw·동기화 | `morai_localization/config/molit_2026_kcity.yaml` |
 | 전역/local path 정책 | `morai_path_manager/config/molit_2026_kcity_route_path.yaml` |
-| Pure Pursuit/PID 게인·목표 속도·안전 임계값 | `morai_path_tracking/config/molit_2026_pure_pursuit.yaml` |
-| 자율 제어 UDP sender·watchdog | `morai_udp_bridge/config/molit_2026_control.yaml` |
+| 횡제어기 선택·제어 게인·목표 속도·안전 임계값 | `morai_path_tracking/config/molit_2026_path_tracking.yaml` |
+| 자율 제어 UDP sender·watchdog·optional gear | `morai_udp_bridge/config/molit_2026_control.yaml` |
 | RViz marker | `morai_visualization/config/path_visualizer.yaml` |
 | 조이스틱 축·안전 동작·제어 UDP | `vehicle_control/config/cyvox_mx.yaml` |
 | 실행 조합 | `morai_bringup/launch/*.launch` |
@@ -238,7 +250,10 @@ rostopic hz /sensors/imu/data
 rostopic echo -n 1 /localization/pose
 rostopic echo -n 1 /global_path
 rostopic echo -n 1 /local_path
+rostopic echo -n 1 /vehicle/competition_status
 rostopic echo -n 1 /control/actuator_command
+rostopic echo -n 1 /control/controller_status
+rostopic echo -n 1 /control/lookahead_point
 rostopic echo -n 1 /joy
 rostopic echo -n 1 /vehicle/status
 rostopic echo -n 1 /vehicle/manual_command
@@ -261,10 +276,13 @@ rostopic echo /diagnostics
 
 - GPS/IMU noise를 끈 상태를 기준으로 한다. pose는 GPS XY와 IMU yaw를 직접
   결합하고, odometry velocity는 위치 차분을 차량 좌표계에서 `0.10 s` 1차 LPF로
-  필터링한다.
+  필터링한다. 자율 PID는 이 추정값 대신 Competition Vehicle Status x속도를
+  사용한다.
 - noise를 켤 때는 pose fusion을 EKF/UKF 계층으로 교체해야 한다.
 - CYVOX는 P/R/N/D 수동 선택을 지원하지만 자율 제어기와의 제어권 중재는 아직
   구현하지 않았다.
+- 자율 기어 토픽과 정지/brake interlock은 UDP bridge에 준비되어 있지만 대회
+  서버가 기어를 관리하므로 기본 `gear_command_enabled: false`다.
 - 자율 sender와 수동 `vehicle_control` sender의 제어권 중재는 구현하지
   않았으므로 두 UDP sender를 동시에 실행하지 않는다.
 - K-City가 아닌 map에서는 UTM offset과 전역경로를 다시 설정해야 한다.
