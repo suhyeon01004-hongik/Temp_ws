@@ -210,7 +210,9 @@ class BringupLaunchCompositionTest(unittest.TestCase):
         root = self.load_launch("molit_2026_autonomous.launch")
         expected_includes = [
             "$(find morai_bringup)/launch/molit_2026_stack.launch",
-            "$(find morai_path_tracking)/launch/pure_pursuit.launch",
+            "$(find morai_udp_bridge)/launch/"
+            "competition_vehicle_status_receiver.launch",
+            "$(find morai_path_tracking)/launch/path_tracking.launch",
             "$(find morai_udp_bridge)/launch/control_sender.launch",
         ]
         self.assertEqual(
@@ -253,9 +255,14 @@ class BringupLaunchCompositionTest(unittest.TestCase):
                 ("lidar_fixed_frame", ""),
                 ("lidar_target_frame", ""),
                 (
+                    "vehicle_status_config",
+                    "$(find morai_udp_bridge)/config/"
+                    "molit_2026_vehicle_status.yaml",
+                ),
+                (
                     "controller_config",
                     "$(find morai_path_tracking)/config/"
-                    "molit_2026_pure_pursuit.yaml",
+                    "molit_2026_path_tracking.yaml",
                 ),
                 (
                     "control_sender_config",
@@ -288,10 +295,14 @@ class BringupLaunchCompositionTest(unittest.TestCase):
         )
         self.assertEqual(
             self.include_argument_pairs(direct_includes[1]),
-            [("config", "$(arg controller_config)")],
+            [("config", "$(arg vehicle_status_config)")],
         )
         self.assertEqual(
             self.include_argument_pairs(direct_includes[2]),
+            [("config", "$(arg controller_config)")],
+        )
+        self.assertEqual(
+            self.include_argument_pairs(direct_includes[3]),
             [("config", "$(arg control_sender_config)")],
         )
 

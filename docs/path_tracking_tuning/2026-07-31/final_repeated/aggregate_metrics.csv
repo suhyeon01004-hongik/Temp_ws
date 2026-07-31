@@ -1,0 +1,2 @@
+group,runs,safe_runs,wheel_contacts_total,minimum_wheel_clearance_worst_m,minimum_wheel_clearance_mean_m,cte_rms_mean_m,cte_p95_mean_m,cte_max_worst_m,curved_cte_p95_mean_m,steering_rate_rms_mean_degps,steering_rate_p95_worst_degps,maximum_speed_worst_kph,straight_brake_samples_total,direct_pedal_reversals_mean
+final,5,5,0,0.08081460103636062,0.10601983693181798,0.13732020531938116,0.2888884267049075,0.5354268106575528,0.30599876766021,19.950537926126753,57.57858494539909,58.30710067749023,0,16.0

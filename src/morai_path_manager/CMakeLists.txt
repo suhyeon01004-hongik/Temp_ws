@@ -63,6 +63,8 @@ install(
 )
 
 if(CATKIN_ENABLE_TESTING)
+  catkin_add_nosetests(test/test_config_contract.py)
+
   catkin_add_gtest(test_route_path
     test/test_route_path.cpp
   )

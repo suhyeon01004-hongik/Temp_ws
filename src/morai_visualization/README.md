@@ -25,11 +25,12 @@ launch/profile만 별도로 제공한다.
 | --- | --- | --- |
 | 청록색 선 | `global_path` | 전체 전역경로 |
 | 초록색 구와 `START` | `global_path_start` | 전역경로 파일의 첫 점 |
-| 주황색 선 | `local_path` | 현재 위치부터 전방 20 pose |
+| 주황색 선 | `local_path` | 현재 위치부터 전방 100 m |
 | 작은 빨간색 구와 `REAR AXLE` | `vehicle_origin` | `base_link`, 즉 뒷차축 중앙 |
 | 빨간색 화살표 | `vehicle_heading` | `base_link`의 전방 `+x` |
 | 노란색 구 | `nearest_waypoint` | 전역경로 최근접점 |
 | 분홍색 선 | `nearest_waypoint` | 최종 위치와 최근접점 사이 오차 |
+| 연두색 구 | `lookahead_point` | Pure Pursuit LD 또는 Stanley 전륜 투영점 |
 
 차량에 붙은 두 marker는 `base_link` 좌표로 발행한다. localization의
 `map -> base_footprint -> base_link` TF를 따라가므로 RobotModel, 원점과
@@ -39,7 +40,8 @@ TF 부모-자식 연결선은 경로와 혼동되지 않도록 path 화면에서
 
 ## Path 시각화 실행
 
-모든 표시를 보려면 `/global_path`, `/local_path`, `/localization/pose`와
+모든 표시를 보려면 `/global_path`, `/local_path`, `/localization/pose`,
+`/control/lookahead_point`와
 `map -> base_link` TF가 필요하다. 입력이 일부 없더라도 visualizer는 실행되며
 수신한 항목만 표시한다.
 
@@ -76,6 +78,7 @@ launch 인자:
 | `global_path_topic` | `/global_path` | 전역경로 입력 |
 | `local_path_topic` | `/local_path` | local path 입력 |
 | `localization_topic` | `/localization/pose` | 최종 위치와 yaw 입력 |
+| `lookahead_point_topic` | `/control/lookahead_point` | `base_link` 기준 횡제어 추종점 입력 |
 | `marker_topic` | `/visualization/path` | MarkerArray 출력 |
 | `frame_id` | `map` | 입력·marker 기준 frame |
 | `base_frame_id` | `base_link` | 차량 원점·heading marker 기준 frame |
@@ -84,6 +87,8 @@ launch 인자:
 | `vehicle_origin_diameter` | `0.30` | 뒷차축 원점 구 지름(m) |
 | `vehicle_origin_label_height` | `0.35` | `REAR AXLE` 글자 높이(m) |
 | `nearest_point_diameter` | `0.7` | 최근접점 구 지름(m) |
+| `lookahead_point_diameter` | `0.8` | 추종점 구 지름(m) |
+| `lookahead_marker_lifetime_sec` | `0.3` | 제어 중단 후 추종점 marker 자동 삭제 시간 |
 | `show_global_path_start` | `true` | 전역경로 시작점 표시 여부 |
 | `global_start_diameter` | `1.4` | 시작점 구 지름(m) |
 | `global_start_text_height` | `1.0` | `START` 글자 높이(m) |
@@ -91,6 +96,9 @@ launch 인자:
 marker 출력은 `/visualization/path`의
 `visualization_msgs/MarkerArray` 하나로 묶인다. 기능별로 namespace가 나뉘어
 있어 RViz의 MarkerArray 항목에서 표시를 개별로 켜고 끌 수 있다.
+Pure Pursuit는 선택한 LD target을 표시한다. Stanley에는 LD가 없으며 전륜
+중심에서 경로로 내린 최근접 투영점을 표시한다. 두 모드 모두 local path와
+겹치는 연결선 없이 target sphere 하나만 표시한다.
 
 ## LiDAR 시각화 실행
 

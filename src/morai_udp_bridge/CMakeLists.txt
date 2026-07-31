@@ -12,7 +12,11 @@ find_package(catkin REQUIRED COMPONENTS
 )
 find_package(Threads REQUIRED)
 
-add_message_files(FILES ActuatorCommand.msg)
+add_message_files(FILES
+  ActuatorCommand.msg
+  CompetitionVehicleStatus.msg
+  GearCommand.msg
+)
 generate_messages(DEPENDENCIES std_msgs)
 
 catkin_package(
@@ -21,6 +25,8 @@ catkin_package(
             morai_udp_bridge_control_protocol morai_udp_bridge_udp_sender
             morai_udp_bridge_control_watchdog
             morai_udp_bridge_control_sender_config
+            morai_udp_bridge_competition_status_protocol
+            morai_udp_bridge_gear_change_interlock
   CATKIN_DEPENDS diagnostic_msgs message_runtime roscpp sensor_msgs std_msgs
 )
 
@@ -50,6 +56,20 @@ add_library(morai_udp_bridge_control_protocol
   src/control_protocol.cpp
 )
 target_compile_features(morai_udp_bridge_control_protocol PUBLIC cxx_std_14)
+
+add_library(morai_udp_bridge_competition_status_protocol
+  src/competition_status_protocol.cpp
+)
+target_compile_features(morai_udp_bridge_competition_status_protocol
+  PUBLIC cxx_std_14
+)
+
+add_library(morai_udp_bridge_gear_change_interlock
+  src/gear_change_interlock.cpp
+)
+target_compile_features(morai_udp_bridge_gear_change_interlock
+  PUBLIC cxx_std_14
+)
 
 add_library(morai_udp_bridge_udp_sender
   src/udp_sender.cpp
@@ -87,10 +107,28 @@ target_link_libraries(control_sender_node
   morai_udp_bridge_control_protocol
   morai_udp_bridge_control_sender_config
   morai_udp_bridge_control_watchdog
+  morai_udp_bridge_gear_change_interlock
   morai_udp_bridge_udp_sender
   ${catkin_LIBRARIES}
 )
 add_dependencies(control_sender_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+add_executable(competition_vehicle_status_receiver_node
+  src/competition_vehicle_status_receiver_node.cpp
+)
+target_compile_features(competition_vehicle_status_receiver_node
+  PUBLIC cxx_std_14
+)
+target_link_libraries(competition_vehicle_status_receiver_node
+  morai_udp_bridge_competition_status_protocol
+  morai_udp_bridge_runtime
+  ${catkin_LIBRARIES}
+  Threads::Threads
+)
+add_dependencies(competition_vehicle_status_receiver_node
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
@@ -103,8 +141,11 @@ install(
     morai_udp_bridge_udp_sender
     morai_udp_bridge_control_watchdog
     morai_udp_bridge_control_sender_config
+    morai_udp_bridge_competition_status_protocol
+    morai_udp_bridge_gear_change_interlock
     morai_udp_bridge_node
     control_sender_node
+    competition_vehicle_status_receiver_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -121,6 +162,8 @@ install(
 )
 
 if(CATKIN_ENABLE_TESTING)
+  catkin_add_nosetests(test/test_autonomous_config_contract.py)
+
   catkin_add_gtest(test_protocols_cpp test/test_protocols_cpp.cpp)
   if(TARGET test_protocols_cpp)
     target_compile_features(test_protocols_cpp PUBLIC cxx_std_14)
@@ -148,6 +191,26 @@ if(CATKIN_ENABLE_TESTING)
     target_link_libraries(test_control_sender_config
       morai_udp_bridge_control_sender_config
       ${catkin_LIBRARIES}
+    )
+  endif()
+
+  catkin_add_gtest(test_competition_status_protocol
+    test/test_competition_status_protocol.cpp
+  )
+  if(TARGET test_competition_status_protocol)
+    target_compile_features(test_competition_status_protocol PUBLIC cxx_std_14)
+    target_link_libraries(test_competition_status_protocol
+      morai_udp_bridge_competition_status_protocol
+    )
+  endif()
+
+  catkin_add_gtest(test_gear_change_interlock
+    test/test_gear_change_interlock.cpp
+  )
+  if(TARGET test_gear_change_interlock)
+    target_compile_features(test_gear_change_interlock PUBLIC cxx_std_14)
+    target_link_libraries(test_gear_change_interlock
+      morai_udp_bridge_gear_change_interlock
     )
   endif()
 

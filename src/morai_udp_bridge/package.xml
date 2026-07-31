@@ -2,7 +2,7 @@
 <package format="2">
   <name>morai_udp_bridge</name>
   <version>0.2.0</version>
-  <description>Sensor-only MORAI UDP to ROS1 bridge for the 2026 MOLIT competition.</description>
+  <description>MORAI sensor/control wire bridge for the 2026 MOLIT competition.</description>
 
   <maintainer email="stier@todo.todo">STIER</maintainer>
   <license>MIT</license>
@@ -18,6 +18,8 @@
   <depend>std_msgs</depend>
 
   <test_depend>gtest</test_depend>
+  <test_depend>python3-nose</test_depend>
+  <test_depend>python3-yaml</test_depend>
 
   <export/>
 </package>

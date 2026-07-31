@@ -108,6 +108,8 @@ class VisualizationAssetsTest(unittest.TestCase):
         marker_display = display_by_class(profile, "rviz/MarkerArray")
         namespaces = marker_display["Namespaces"]
         self.assertTrue(namespaces["vehicle_origin"])
+        self.assertTrue(namespaces["lookahead_point"])
+        self.assertTrue(namespaces["stanley_projection_point"])
         self.assertNotIn("current_position", namespaces)
 
     def test_lidar_only_profile_remains_localization_independent(self):

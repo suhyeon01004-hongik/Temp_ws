@@ -31,6 +31,8 @@ void validateConfig(const PurePursuitConfig& config) {
   requireFiniteNonNegative("lookahead_base_m", config.lookahead_base_m);
   requireFiniteNonNegative("lookahead_speed_gain_sec",
                            config.lookahead_speed_gain_sec);
+  requireFiniteNonNegative("lookahead_curvature_gain_m",
+                           config.lookahead_curvature_gain_m);
   requireFinitePositive("lookahead_min_m", config.lookahead_min_m);
   requireFinitePositive("lookahead_max_m", config.lookahead_max_m);
   if (config.lookahead_max_m < config.lookahead_min_m) {
@@ -84,18 +86,24 @@ bool firstForwardIntersection(const Point2d& start, const Point2d& end,
 
 PurePursuitResult computePurePursuit(
     const std::vector<Point2d>& path_in_vehicle_frame,
-    double longitudinal_speed_mps, const PurePursuitConfig& config) {
+    double longitudinal_speed_mps, double preview_curvature_m_inv,
+    const PurePursuitConfig& config) {
   validateConfig(config);
-  if (!std::isfinite(longitudinal_speed_mps)) {
+  if (!std::isfinite(longitudinal_speed_mps) ||
+      !std::isfinite(preview_curvature_m_inv) ||
+      preview_curvature_m_inv < 0.0) {
     return {};
   }
 
   PurePursuitResult result;
+  const double speed_lookahead_m =
+      config.lookahead_base_m +
+      config.lookahead_speed_gain_sec * std::abs(longitudinal_speed_mps);
+  const double curvature_scale =
+      1.0 + config.lookahead_curvature_gain_m * preview_curvature_m_inv;
   result.lookahead_m = std::max(
       config.lookahead_min_m,
-      std::min(config.lookahead_max_m,
-               config.lookahead_base_m + config.lookahead_speed_gain_sec *
-                                             std::abs(longitudinal_speed_mps)));
+      std::min(config.lookahead_max_m, speed_lookahead_m / curvature_scale));
 
   Point2d target;
   bool found_target = false;

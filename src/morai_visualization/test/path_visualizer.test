@@ -8,10 +8,16 @@
     <param name="global_path_topic" value="/test/global_path"/>
     <param name="local_path_topic" value="/test/local_path"/>
     <param name="localization_topic" value="/test/localization_pose"/>
+    <param name="lookahead_point_topic" value="/test/lookahead_point"/>
+    <param name="stanley_projection_point_topic"
+           value="/test/stanley_projection_point"/>
     <param name="marker_topic" value="/test/path_markers"/>
     <param name="frame_id" value="map"/>
     <param name="vehicle_origin_diameter" value="0.3"/>
     <param name="vehicle_origin_label_height" value="0.35"/>
+    <param name="lookahead_point_diameter" value="0.8"/>
+    <param name="stanley_projection_point_diameter" value="0.65"/>
+    <param name="lookahead_marker_lifetime_sec" value="0.3"/>
   </node>
 
   <test test-name="path_visualizer_marker_contract"

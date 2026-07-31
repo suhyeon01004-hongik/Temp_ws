@@ -12,7 +12,7 @@
 | 토픽 | 타입 | frame | 발행/의미 |
 | --- | --- | --- | --- |
 | `/global_path` | `nav_msgs/Path` | `map` | 시작 때 한 번 발행하는 **latched** 전체 공식 경로. 4,392 pose, 2.1846 km 폐루프다. 늦게 구독해도 마지막 메시지를 받는다. |
-| `/local_path` | `nav_msgs/Path` | `map` | 최종 localization pose를 받을 때마다 발행하는 **non-latched** 전방 경로다. 현재 위치에 가장 가까운 공식 waypoint부터 정확히 20 pose(일반적으로 약 9.5 m)를 포함하며 폐루프 끝에서는 처음으로 이어진다. |
+| `/local_path` | `nav_msgs/Path` | `map` | 최종 localization pose를 받을 때마다 발행하는 **non-latched** 전방 경로다. 현재 위치에 가장 가까운 공식 waypoint부터 전방 100 m 이상을 포함하며 폐루프 끝에서는 처음으로 이어진다. 현재 약 0.5 m 간격 경로에서는 일반적으로 약 201 pose다. |
 | `/localization/pose` | `geometry_msgs/PoseStamped` | `map` | GPS X/Y와 IMU yaw를 결합한 최종 pose다. route path node는 position만 경로 검색에 사용하고 입력 `header.stamp`를 `/local_path`에 그대로 사용한다. |
 
 `/global_path`와 `/local_path`의 각 `PoseStamped.pose.position`은 공식 경로의
@@ -42,7 +42,7 @@ latched가 아니므로, 현재 구독자가 마지막 메시지를 보더라도
 사용한다.
 
 ```bash
-roslaunch morai_bringup molit_2026_stack.launch use_lidar:=false
+roslaunch morai_bringup molit_2026_stack.launch
 ```
 
 센서, localization, path manager는 서로 다른 bringup launch다. GPS projector
@@ -90,8 +90,8 @@ source devel/setup.bash
 | `global_path_topic` | `/global_path` | latched 전체 `nav_msgs/Path` 출력 토픽 |
 | `local_path_topic` | `/local_path` | non-latched 전방 `nav_msgs/Path` 출력 토픽 |
 | `frame_id` | `map` | 입력 point가 일치해야 하는 frame 및 두 path의 frame |
-| `local_path_mode` | `point_count` | `point_count`면 pose 개수, `distance`면 거리로 local path를 추출 |
-| `local_path_point_count` | `20` | `point_count` 모드에서 nearest waypoint를 포함해 발행할 pose 개수 |
+| `local_path_mode` | `distance` | `point_count`면 pose 개수, `distance`면 거리로 local path를 추출 |
+| `local_path_point_count` | `20` | `point_count` 모드에서만 사용하는 pose 개수 |
 | `local_path_length_m` | `100.0` | `distance` 모드에서 nearest waypoint부터 추출할 전방 거리(m) |
 | `max_path_point_spacing_m` | `1.0` | 허용하는 인접 공식 경로점의 최대 간격(m); 초과하면 경로 로드를 거부 |
 | `search_backward_m` | `20.0` | 직전 nearest index 주위에서 연속 탐색할 뒤쪽 거리(m) |
@@ -100,15 +100,17 @@ source devel/setup.bash
 | `flatten_z` | `true` | path pose의 Z를 0으로 평탄화할지 여부 |
 | `require_closed_loop` | `true` | 폐루프 경로만 허용할지 여부 |
 
-제어 look-ahead를 조정하려면 재컴파일하지 않고 YAML의
-`local_path_point_count`를 바꾸면 된다. 거리 기준이 필요하면
-`local_path_mode: distance`와 원하는 `local_path_length_m`를 설정한다. 별도
-설정 파일은 다음처럼 전달한다.
+제어 preview를 조정하려면 재컴파일하지 않고 YAML의
+`local_path_length_m`을 바꾸면 된다. 기본 100 m는 제어기의 45 m 첫 주행
+곡률 preview와 16 m 최대 LD보다 길고, 실제 감속거리 측정 후 preview를
+늘릴 여유가 있다. 추출은 목표 거리를 넘는 첫 waypoint까지
+포함하므로 실제 길이는 설정값보다 최대 한 waypoint 간격만큼 길 수 있다.
+pose 개수를 고정해야 하는 별도 구성에서만 `local_path_mode: point_count`와
+`local_path_point_count`를 사용한다. 별도 설정 파일은 다음처럼 전달한다.
 
 ```bash
 # 전체 stack
 roslaunch morai_bringup molit_2026_stack.launch \
-  use_lidar:=false \
   route_path_config:=/absolute/path/to/route.yaml
 
 # Path manager bringup

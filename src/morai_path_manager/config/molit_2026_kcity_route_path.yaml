@@ -3,7 +3,7 @@ localization_topic: /localization/pose
 global_path_topic: /global_path
 local_path_topic: /local_path
 frame_id: map
-local_path_mode: point_count
+local_path_mode: distance
 local_path_point_count: 20
 local_path_length_m: 100.0
 max_path_point_spacing_m: 1.0
